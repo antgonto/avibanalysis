@@ -8,6 +8,7 @@ using System.Linq;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
 
+using System.Windows.Forms;
 using System.Reflection;
 using Newtonsoft.Json;
 
@@ -29,6 +30,8 @@ namespace ProjectParser
 
             return cantIf + cantWhile + cantFor + cantForEach + cantCase + cantDefault + cantDoWhile + 1;
         }
+
+        [STAThread]
         public static void Main(string[] args)
         {
             //Metrics();
@@ -85,7 +88,7 @@ namespace ProjectParser
 
             return obj == null ? null : (obj as NamespaceDeclarationSyntax);
         }
-
+        [STAThread]
         public static void JsonStructure()
         {
             JsonProject project = new JsonProject();
@@ -185,12 +188,19 @@ namespace ProjectParser
                     }
                 }
             }
+            FolderBrowserDialog salida = new FolderBrowserDialog();
+            System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\Steven\Documents\GitHub\AnalizadorDFSMaster\AnalizadorDFS\output.txt");
+            if (salida.ShowDialog() == DialogResult.OK)
+            {
+                output = new System.IO.StreamWriter(@"" + salida.SelectedPath + "\\output.txt");
+
+            }
 
             JsonMetodo.RunDFS(project);
 
             JsonSerializer serializer = new JsonSerializer();
 
-            using (StreamWriter sw = new StreamWriter(@"C:\Users\jnavas\source\repos\ExtractIndirectCoupling\" + project.Name + ".json"))
+            using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath +"\\"+ project.Name + ".json"))
             using (JsonWriter writer = new JsonTextWriter(sw))
             {
                 serializer.Serialize(writer, project);
@@ -521,8 +531,16 @@ namespace ProjectParser
             metrics.calculateAVG();
             metrics.calculatePairs();
 
+            FolderBrowserDialog salida = new FolderBrowserDialog();
+            System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\Steven\Documents\GitHub\AnalizadorDFSMaster\AnalizadorDFS\output.txt");
+            if (salida.ShowDialog() == DialogResult.OK)
+            {
+                output = new System.IO.StreamWriter(@"" + salida.SelectedPath + "\\output.txt");
+
+            }
+
             // Send output to a file
-            System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\ExtractIndirectCoupling\output.txt");
+            //System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\ExtractIndirectCoupling\output.txt");
             //System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\AnalizadorDFS\AnalizadorDFS\output.txt");
 
             //grafo.imprimirCadenas(output);
@@ -657,50 +675,58 @@ namespace ProjectParser
             Console.Read();
         }
 
-
+        [STAThread]
         private static Compilation CreateTestCompilation()//JsonClase para la creacion de los árboles de sintaxis
         {
-            // creation of the syntax tree for every file    
-            //String programPath = @"C:\Users\Steven\Desktop\Código prueba\shadowsocks-windows-master";
-            //  String programPath = @"C:\Users\Steven\Desktop\Código prueba\mongo-csharp-driver-master\mongo-csharp-driver-master\src";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
-            //String programPath = @"C:\Users\jnavas\source\repos\AnalizadorDFS\AnalizadorDFS\Ejemplo";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
-            String programPath = @"C:\Users\jnavas\source\repos\roslyn";
-            //String programPath = @"C:\Users\jnavas\source\repos\netmf";
-            //String programPath = @"C:\Users\jnavas\source\repos\mongo";
+            FolderBrowserDialog entrada = new FolderBrowserDialog();
+            if (entrada.ShowDialog() == DialogResult.OK)
+            {
+                Console.WriteLine(entrada.SelectedPath);
+                // creation of the syntax tree for every file    
+                //String programPath = @"C:\Users\Steven\Desktop\Código prueba\shadowsocks-windows-master";
+                //  String programPath = @"C:\Users\Steven\Desktop\Código prueba\mongo-csharp-driver-master\mongo-csharp-driver-master\src";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
+                //String programPath = @"C:\Users\jnavas\source\repos\AnalizadorDFS\AnalizadorDFS\Ejemplo";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
+                //String programPath = @""+ entrada.SelectedPath;
+                // String programPath = @"" + entrada.SelectedPath;
+                //String programPath = @"C:\Users\jnavas\source\repos\netmf";
+                //String programPath = @"C:\Users\jnavas\source\repos\mongo";
 
-            //String programPath = @"C:\Users\jnavas\source\repos\roslyn";
-            //String programPath = @"C:\Users\Steven\Documents\GitHub\AnalizadorDFS\AnalizadorDFS\Ejemplo";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
-            //String programPath = @"C:\Users\jnavas\source\repos\AnalizadorDFS\AnalizadorDFS\Ejemplo";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
+                //String programPath = @"C:\Users\jnavas\source\repos\roslyn";
+                String programPath = @"" + entrada.SelectedPath;
+                //String programPath = @"C:\Users\Steven\Documents\GitHub\AnalizadorDFS\AnalizadorDFS\Ejemplo";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
+                //String programPath = @"C:\Users\jnavas\source\repos\AnalizadorDFS\AnalizadorDFS\Ejemplo";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
 
-            string nombreDelProyecto = Path.GetFileName(programPath);
-            var csFiles = Directory.EnumerateFiles(programPath, "*.cs", SearchOption.AllDirectories);//Crea una coleccion de directorios de los archivos que encuentre
+                string nombreDelProyecto = Path.GetFileName(programPath);
+                var csFiles = Directory.EnumerateFiles(programPath, "*.cs", SearchOption.AllDirectories);//Crea una coleccion de directorios de los archivos que encuentre
 
-            List<SyntaxTree> sourceTrees = new List<SyntaxTree>();//Lista para almacenar los SyntaxTrees que se van a crear
-
-
-            foreach (string currentFile in csFiles)
-            {//Loop que recorre toda la coleccion de archivos
-
-
-                String programText = File.ReadAllText(currentFile);//Lee el archivo y lo guarda en un string
-                SyntaxTree programTree = CSharpSyntaxTree.ParseText(programText).WithFilePath(currentFile);//Crea el SyntaxTree para el archivo actual con el string 
+                List<SyntaxTree> sourceTrees = new List<SyntaxTree>();//Lista para almacenar los SyntaxTrees que se van a crear
 
 
-                sourceTrees.Add(programTree);//Guarda el archivo ya parseado dentro de la lista
+                foreach (string currentFile in csFiles)
+                {//Loop que recorre toda la coleccion de archivos
+
+
+                    String programText = File.ReadAllText(currentFile);//Lee el archivo y lo guarda en un string
+                    SyntaxTree programTree = CSharpSyntaxTree.ParseText(programText).WithFilePath(currentFile);//Crea el SyntaxTree para el archivo actual con el string 
+
+
+                    sourceTrees.Add(programTree);//Guarda el archivo ya parseado dentro de la lista
+
+                }
+                // gathering the assemblies
+                MetadataReference mscorlib = MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location);
+                MetadataReference codeAnalysis = MetadataReference.CreateFromFile(typeof(SyntaxTree).GetTypeInfo().Assembly.Location);
+                MetadataReference csharpCodeAnalysis = MetadataReference.CreateFromFile(typeof(CSharpSyntaxTree).GetTypeInfo().Assembly.Location);
+                MetadataReference[] references = { mscorlib, codeAnalysis, csharpCodeAnalysis };
+
+                // compilation
+                return CSharpCompilation.Create(nombreDelProyecto,
+                                 sourceTrees,
+                                 references,
+                                 new CSharpCompilationOptions(OutputKind.ConsoleApplication));
 
             }
-            // gathering the assemblies
-            MetadataReference mscorlib = MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location);
-            MetadataReference codeAnalysis = MetadataReference.CreateFromFile(typeof(SyntaxTree).GetTypeInfo().Assembly.Location);
-            MetadataReference csharpCodeAnalysis = MetadataReference.CreateFromFile(typeof(CSharpSyntaxTree).GetTypeInfo().Assembly.Location);
-            MetadataReference[] references = { mscorlib, codeAnalysis, csharpCodeAnalysis };
-
-            // compilation
-            return CSharpCompilation.Create(nombreDelProyecto,
-                             sourceTrees,
-                             references,
-                             new CSharpCompilationOptions(OutputKind.ConsoleApplication));
-
+            return null;
         }
     }
 }

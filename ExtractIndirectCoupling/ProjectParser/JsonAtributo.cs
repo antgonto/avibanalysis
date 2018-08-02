@@ -43,19 +43,20 @@ namespace ProjectParser
 
         [JsonProperty]
         public int Id { get => id; set => id = value; }
-        [JsonProperty]
-        public string Name { get => name; set => name = value; }
-        [JsonProperty("ClassId")]
-        public int ClaseId { get => oClase.Id; set => oClase.Id = value; }
-        [JsonProperty("Class")]
-        public string ClaseName { get => oClase.Name; set => oClase.Name = value; }
-        [JsonProperty("NamespaceId")]
-        public int PaqueteId { get => oPaquete.Id; set => oPaquete.Id = value; }
-        [JsonProperty("Namespace")]
-        public string PaqueteName { get => oPaquete.Name; set => oPaquete.Name = value; }
-        [JsonProperty]
-        internal List<JsonCall> CalledBy { get => calledBy; set => calledBy = value; }
+            [JsonProperty]
+            public string Name { get => name; set => name = value; }
+            [JsonProperty("ClassId")]
+            public int ClaseId { get => oClase.Id; set => oClase.Id = value; }
+            [JsonProperty("Class")]
+            public string ClaseName { get => oClase.Name; set => oClase.Name = value; }
+            [JsonProperty("NamespaceId")]
+            public int PaqueteId { get => oPaquete.Id; set => oPaquete.Id = value; }
+            [JsonProperty("Namespace")]
+            public string PaqueteName { get => oPaquete.Name; set => oPaquete.Name = value; }
+            [JsonProperty]
+            internal List<JsonCall> CalledBy { get => calledBy; set => calledBy = value; }
         internal JsonClase OClase { get => oClase; set => oClase = value; }
         internal JsonPaquete OPaquete { get => oPaquete; set => oPaquete = value; }
+        
     }
 }
