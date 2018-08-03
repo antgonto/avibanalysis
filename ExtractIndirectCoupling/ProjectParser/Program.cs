@@ -45,13 +45,18 @@ namespace ProjectParser
             while (!(obj is MethodDeclarationSyntax ||
                      obj is PropertyDeclarationSyntax ||
                      obj is ConstructorDeclarationSyntax ||
-                     obj is OperatorDeclarationSyntax ||
-                     obj is IndexerDeclarationSyntax ||
-                     obj is ConversionOperatorDeclarationSyntax||
-                     obj is FieldDeclarationSyntax ||
-                     obj is DestructorDeclarationSyntax) && obj != null) obj = obj.Parent;
+                     //obj is OperatorDeclarationSyntax || <--- Pendiente de procesar
+                     //obj is IndexerDeclarationSyntax || <--- Pendiente de procesar
+                     //obj is ConversionOperatorDeclarationSyntax|| <--- Pendiente de procesar
+                     //obj is FieldDeclarationSyntax ||   <--- Pendiente de procesar
+                     obj is DestructorDeclarationSyntax) && obj != null)
+            {
+                if (obj is ClassDeclarationSyntax || obj is NamespaceDeclarationSyntax)
+                    break;
+                obj = obj.Parent;
+            }
 
-            return obj;
+            return (obj is ClassDeclarationSyntax || obj is NamespaceDeclarationSyntax) ? null : obj;
         }
 
         private static string FindMethodName(SyntaxNode obj)
@@ -59,21 +64,26 @@ namespace ProjectParser
             if (obj is MethodDeclarationSyntax) return (obj as MethodDeclarationSyntax).Identifier.ToString();
             if (obj is PropertyDeclarationSyntax) return (obj as PropertyDeclarationSyntax).Identifier.ToString();
             if (obj is ConstructorDeclarationSyntax) return (obj as ConstructorDeclarationSyntax).Identifier.ToString();
-            if (obj is OperatorDeclarationSyntax) return (obj as OperatorDeclarationSyntax).GetText().ToString();
-            if (obj is IndexerDeclarationSyntax) return (obj as IndexerDeclarationSyntax).GetText().ToString();
-            if (obj is FieldDeclarationSyntax) return (obj as FieldDeclarationSyntax).GetText().ToString();
-            if (obj is DestructorDeclarationSyntax) return (obj as DestructorDeclarationSyntax).GetText().ToString();
-            if (obj is ConversionOperatorDeclarationSyntax) return (obj as ConversionOperatorDeclarationSyntax).GetText().ToString();
+            //if (obj is OperatorDeclarationSyntax) return (obj as OperatorDeclarationSyntax).GetText().ToString(); <--- Pendiente de procesar
+            //if (obj is IndexerDeclarationSyntax) return (obj as IndexerDeclarationSyntax).GetText().ToString(); <--- Pendiente de procesar
+            //if (obj is FieldDeclarationSyntax) return (obj as FieldDeclarationSyntax).GetText().ToString(); <--- Pendiente de procesar
+            if (obj is DestructorDeclarationSyntax) return (obj as DestructorDeclarationSyntax).Identifier.ToString();
+            //if (obj is ConversionOperatorDeclarationSyntax) return (obj as ConversionOperatorDeclarationSyntax).GetText().ToString(); <--- Pendiente de procesar
             return "";
         }
 
         private static SyntaxNode FindClass(SyntaxNode obj)
         {
-            while (!(obj is ClassDeclarationSyntax || 
+            while (!(obj is ClassDeclarationSyntax ||
                      obj is InterfaceDeclarationSyntax ||
-                     obj is StructDeclarationSyntax) && obj != null) obj = obj.Parent;
+                     obj is StructDeclarationSyntax) && obj != null)
+            {
+                if (obj is NamespaceDeclarationSyntax)
+                    break;
+                obj = obj.Parent;
+            }
 
-            return obj;
+            return (obj is NamespaceDeclarationSyntax) ? null : obj;
         }
 
         private static string FindClassName(SyntaxNode obj)
@@ -90,13 +100,12 @@ namespace ProjectParser
 
             return obj == null ? null : (obj as NamespaceDeclarationSyntax);
         }
-        [STAThread]
-        public static void JsonStructure()
-        {
-            JsonProject project = new JsonProject();
-            JsonPaquete.Project = project;
 
-            Compilation myCompilation = CreateTestCompilation();//Llama a la clase para crear la lista de archivos
+        [STAThread]
+        private static void ExtractGraphFromAST(JsonProject project, Compilation myCompilation, string path)
+        {
+            // Send output to a file
+            System.IO.StreamWriter output = new System.IO.StreamWriter(@"" + path + @"\graph_info.txt");
 
             List<SemanticModel> semanticModels = new List<SemanticModel>();
             List<SyntaxNode> roots = new List<SyntaxNode>();
@@ -113,6 +122,8 @@ namespace ProjectParser
             List<FieldDeclarationSyntax> fieldDeclaration;
             List<InvocationExpressionSyntax> invocationExpressionSyntax;
 
+            output.WriteLine("\n\nLista de Metodos:\n----------------------------------------------------------------\n\n");
+
             for (int i = 0; i < semanticModels.Count; i++)
             {
                 //Obtengo todas las declaraciones de metodos en el modelo semantico.
@@ -123,12 +134,15 @@ namespace ProjectParser
                 {
                     SyntaxNode classDec = FindClass(declaracionDeMetodoActual);
                     NamespaceDeclarationSyntax namespaceDec = FindNamespace(classDec);
-                    JsonMetodo.GetMetodo(
-                        declaracionDeMetodoActual.Identifier.ToString(), 
+                    JsonMetodo m = JsonMetodo.GetMetodo(
+                        declaracionDeMetodoActual.Identifier.ToString(),
                         FindClassName(classDec),
                         namespaceDec == null ? "" : namespaceDec.Name.ToString());
+
+                    output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-15} {4,-15} {5,-15}",
+                                                   m.Name, m.ClaseName, m.PaqueteName, m.Id, m.ClaseId, m.PaqueteId));
                 }
-                
+
                 //Obtengo todas las clases del modelo.
                 classDeclarationSyntax = roots[i].DescendantNodes().OfType<ClassDeclarationSyntax>().ToList();
 
@@ -153,6 +167,8 @@ namespace ProjectParser
                 }
             }
 
+            output.WriteLine("\n\nLista de Llamadas:\n----------------------------------------------------------------\n\n");
+
             for (int i = 0; i < semanticModels.Count; i++)
             {
                 //Obtengo todas las invocaciones de metodos en el modelo semantico.
@@ -164,7 +180,7 @@ namespace ProjectParser
                     SyntaxNode classDec = FindClass(methodDec);
                     NamespaceDeclarationSyntax namespaceDec = FindNamespace(classDec);
                     ISymbol symbol = semanticModels[i].GetSymbolInfo(invocation).Symbol;
-                    if (symbol != null)
+                    if (methodDec != null && classDec != null && namespaceDec != null && symbol != null)
                     {
                         if (symbol is IMethodSymbol)
                         {
@@ -174,14 +190,25 @@ namespace ProjectParser
                                 JsonMetodo caller = JsonMetodo.GetMetodo(FindMethodName(methodDec),
                                     FindClassName(classDec), namespaceDec == null ? "" : namespaceDec.Name.ToString());
 
-                                int msrc = symbol.ToString().Substring(0, symbol.ToString().IndexOf("(")).LastIndexOf(".") + 1; //symbol.ContainingSymbol.ToString().Length + 1;
-                                int mlen = symbol.ToString().IndexOf("(") - msrc;
-                                int csrc = symbol.ContainingSymbol.ToString().LastIndexOf(".") + 1; //symbol.ContainingNamespace.ToString().Length + 1;
-                                JsonMetodo callee = JsonMetodo.GetMetodo(symbol.ToString().Substring(msrc, mlen),
-                                    symbol.ContainingSymbol.ToString().Substring(csrc), symbol.ContainingNamespace.ToString());
+                                string mname = iSymbol.Name;
+                                string cname = iSymbol.ContainingSymbol.Name;
+                                string nname = iSymbol.ContainingNamespace.ToString();
+
+                                JsonMetodo callee = JsonMetodo.GetMetodo(mname, cname, nname);
 
                                 JsonCall callerEntry = new JsonCall(caller.Id, caller.Name, caller.ClaseId, caller.ClaseName, caller.PaqueteId, caller.PaqueteName, caller);
                                 JsonCall calleeEntry = new JsonCall(callee.Id, callee.Name, callee.ClaseId, callee.ClaseName, callee.PaqueteId, callee.PaqueteName, callee);
+
+                                if (!callee.CalledBy.Contains(callerEntry))
+                                {
+                                    output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-150} {4,-150} {5,-150} {6,-15} {7,-15} {8,-15} {9,-15} {10,-15} {11,-15}",
+                                                                   caller.Name, callee.Name,
+                                                                   caller.ClaseName, callee.ClaseName,
+                                                                   caller.PaqueteName, callee.PaqueteName,
+                                                                   caller.Id, callee.Id,
+                                                                   caller.ClaseId, callee.ClaseId,
+                                                                   caller.PaqueteId, callee.PaqueteId));
+                                }
 
                                 if (!callee.CalledBy.Contains(callerEntry)) callee.CalledBy.Add(callerEntry);
                                 if (!caller.Calls.Contains(calleeEntry)) caller.Calls.Add(calleeEntry);
@@ -191,23 +218,47 @@ namespace ProjectParser
                 }
             }
 
+<<<<<<< HEAD
             connectNeo4J(project);
+=======
+            output.Flush();
+        }
+
+        [STAThread]
+        public static void JsonStructure()
+        {
+            JsonProject project = new JsonProject();
+            JsonPaquete.Project = project;
+
+            Compilation myCompilation = CreateTestCompilation();//Llama a la clase para crear la lista de archivos
+
+>>>>>>> e8d3e9b9a9f940e509f0c88e1d01b57fcc27a88e
             FolderBrowserDialog salida = new FolderBrowserDialog();
-            System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\Steven\Documents\GitHub\AnalizadorDFSMaster\AnalizadorDFS\output.txt");
+            salida.Description = @"Output folder";
+            salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
             if (salida.ShowDialog() == DialogResult.OK)
             {
+<<<<<<< HEAD
                 output = new System.IO.StreamWriter(@"" + salida.SelectedPath + "\\output.txt");
 
             }
             JsonMetodo.RunDFS(project);
+=======
+                ExtractGraphFromAST(project, myCompilation, salida.SelectedPath);
 
-            JsonSerializer serializer = new JsonSerializer();
+                JsonMetodo.CountChainsUsingDFS(project);
+                //JsonMetodo.CollectChainsUsingDFS(project);
+>>>>>>> e8d3e9b9a9f940e509f0c88e1d01b57fcc27a88e
 
-            using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath +"\\"+ project.Name + ".json"))
-            using (JsonWriter writer = new JsonTextWriter(sw))
-            {
-                serializer.Serialize(writer, project);
+                JsonSerializer serializer = new JsonSerializer();
+
+                using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
+                using (JsonWriter writer = new JsonTextWriter(sw))
+                {
+                    serializer.Serialize(writer, project);
+                }
             }
+
         }
 
         public static void Metrics()
@@ -686,6 +737,8 @@ namespace ProjectParser
         private static Compilation CreateTestCompilation()//JsonClase para la creacion de los árboles de sintaxis
         {
             FolderBrowserDialog entrada = new FolderBrowserDialog();
+            entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
+            entrada.Description = @"Input folder";
             if (entrada.ShowDialog() == DialogResult.OK)
             {
                 Console.WriteLine(entrada.SelectedPath);

@@ -21,6 +21,10 @@ namespace ProjectParser
         HashSet<JsonCall> calls = new HashSet<JsonCall>();
         HashSet<JsonCall> calledBy = new HashSet<JsonCall>();
 
+        // Send output to a file
+        //static System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\some_chains.txt");
+        //static int nprint = 10000;
+
         bool dfsFlag = false;
 
 
@@ -47,27 +51,43 @@ namespace ProjectParser
             return oMetodo;
         }
 
-        public static void RunDFS(JsonProject project)
+        public static void CountChainsUsingDFS(JsonProject project)
         {
+            ulong count = 0;
+            ulong avgdepth = 0;
+
+            List<JsonMetodo> list = new List<JsonMetodo>();
+
+            int total_metodos = metodos.Count;
+            int total_no_llamados = 0;
+
             foreach (KeyValuePair<string, JsonMetodo> m in metodos)
             {
                 if (m.Value.CalledBy.Count == 0)
                 {
-                    FindChainsUsingDFS(m.Value, new List<JsonCall>(), project);
+                    list.Add(m.Value);
+                    total_no_llamados++;
                 }
             }
+
+            foreach (JsonMetodo m in list)
+            {
+                CountDFS(m, 1, ref avgdepth, ref count, project);
+                total_no_llamados--;
+            }
+
+            if (count > 0) avgdepth = avgdepth / count;
         }
 
-        static void FindChainsUsingDFS(JsonMetodo m, List<JsonCall> list, JsonProject project)
+        static void CountDFS(JsonMetodo m, ulong depth, ref ulong avgdepth, ref ulong count, JsonProject project)
         {
             m.DfsFlag = true;
-            list.Add(new JsonCall(m.Id, m.Name, m.ClaseId, m.ClaseName, m.PaqueteId, m.PaqueteName, m));
             if (m.Calls.Count == 0)
             {
-                if (list.Count > 2)
+                if (depth > 2)
                 {
-                    List<JsonCall> l = new List<JsonCall>(list);
-                    project.Chains.Add(l);
+                    avgdepth += depth;
+                    count++;
                 }
             }
             else
@@ -76,7 +96,61 @@ namespace ProjectParser
                 {
                     if (c.Metodo.DfsFlag == false)
                     {
-                        FindChainsUsingDFS(c.Metodo, list, project);
+                        CountDFS(c.Metodo, depth+1, ref avgdepth, ref count, project);
+                    }
+                }
+            }
+            m.DfsFlag = false;
+        }
+
+        public static void CollectChainsUsingDFS(JsonProject project)
+        {
+            foreach (KeyValuePair<string, JsonMetodo> m in metodos)
+            {
+                if (m.Value.CalledBy.Count == 0)
+                {
+                    CollectDFS(m.Value, new List<JsonCall>(), project);
+                }
+            }
+
+            /*
+            foreach (List<JsonCall> ch in project.Chains)
+            {
+                string chain = ">> ";
+                foreach (JsonCall c in ch)
+                {
+                    chain = chain + c.ClassName + "." + c.Name + " > ";
+                }
+
+                output.WriteLine(chain);
+            }
+
+            output.Flush();
+            */
+        }
+
+        static void CollectDFS(JsonMetodo m, List<JsonCall> list, JsonProject project)
+        {
+            //if (nprint == 0) return;
+
+            m.DfsFlag = true;
+            list.Add(new JsonCall(m.Id, m.Name, m.ClaseId, m.ClaseName, m.PaqueteId, m.PaqueteName, m));
+            if (m.Calls.Count == 0)
+            {
+                if (list.Count > 2)
+                {
+                    List<JsonCall> l = new List<JsonCall>(list);
+                    project.Chains.Add(l);
+                    //nprint--;
+                }
+            }
+            else
+            {
+                foreach (JsonCall c in m.Calls)
+                {
+                    if (c.Metodo.DfsFlag == false)
+                    {
+                        CollectDFS(c.Metodo, list, project);
                     }
                 }
             }
