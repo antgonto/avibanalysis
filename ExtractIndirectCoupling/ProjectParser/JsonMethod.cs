@@ -11,9 +11,7 @@ namespace ProjectParser
     [JsonObject(MemberSerialization.OptIn,Description = "Method")]
     class JsonMethod
     {
-        static int currentId = 0;
-
-        int id;
+        long id;
         string name;
         JsonClass oclass;
         JsonNamespace onamespace;
@@ -28,7 +26,7 @@ namespace ProjectParser
         bool dfsFlag = false;
 
 
-        public JsonMethod(int id, string name, JsonClass clase, JsonNamespace @namespace)
+        public JsonMethod(long id, string name, JsonClass clase, JsonNamespace @namespace)
         {
             this.id = id;
             this.name = name;
@@ -43,7 +41,7 @@ namespace ProjectParser
             if (!methods.TryGetValue(onamespace + "." + oclass + "." + name, out method))
             {
                 JsonClass c = ProjectParser.JsonClass.GetClass(oclass, onamespace);
-                method = new JsonMethod(currentId++, name, c, JsonNamespace.GetNamespace(onamespace));
+                method = new JsonMethod(JsonProject.Nextid++, name, c, JsonNamespace.GetNamespace(onamespace));
                 methods.Add(onamespace + "." + oclass + "." + name, method);
                 c.Methods.Add(method);
             }
@@ -159,15 +157,15 @@ namespace ProjectParser
         }
 
         [JsonProperty]
-        public int Id { get => id; set => id = value; }
+        public long Id { get => id; set => id = value; }
         [JsonProperty]
         public string Name { get => name; set => name = value; }
         [JsonProperty("ClassId")]
-        public int ClassId { get => oclass.Id; set => oclass.Id = value; }
+        public long ClassId { get => oclass.Id; set => oclass.Id = value; }
         [JsonProperty("Class")]
         public string ClassName { get => oclass.Name; set => oclass.Name = value; }
         [JsonProperty("NamespaceId")]
-        public int NamespaceId { get => onamespace.Id; set => onamespace.Id = value; }
+        public long NamespaceId { get => onamespace.Id; set => onamespace.Id = value; }
         [JsonProperty("Namespace")]
         public string NamespaceName { get => onamespace.Name; set => onamespace.Name = value; }
         [JsonProperty]

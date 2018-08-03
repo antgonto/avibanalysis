@@ -230,13 +230,13 @@ namespace ProjectParser
 
             FolderBrowserDialog salida = new FolderBrowserDialog();
             salida.Description = @"Output folder";
-           // salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
-            salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
+            salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
+            //salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
             if (salida.ShowDialog() == DialogResult.OK)
             {
                 ExtractGraphFromAST(project, myCompilation, salida.SelectedPath);
 
-                connectNeo4J(project);
+                //connectNeo4J(project);
 
                 // Disabled until runing time issue is solved!
                 //JsonMethod.CountChainsUsingDFS(project);
@@ -725,8 +725,8 @@ namespace ProjectParser
         private static Compilation CreateTestCompilation()//JsonClass para la creacion de los árboles de sintaxis
         {
             FolderBrowserDialog entrada = new FolderBrowserDialog();
-            //entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
-            entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
+            entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
+            //entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
             entrada.Description = @"Input folder";
             if (entrada.ShowDialog() == DialogResult.OK)
             {

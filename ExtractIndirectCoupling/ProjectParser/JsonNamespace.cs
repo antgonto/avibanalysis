@@ -10,25 +10,28 @@ namespace ProjectParser
     [JsonObject(MemberSerialization.OptIn, Description = "Namespace")]
     class JsonNamespace : IEquatable<JsonNamespace>
     {
-        static int currentId = 0;
         static Dictionary<string, JsonNamespace> namespaces = new Dictionary<string, JsonNamespace>();
         static JsonProject project;
-        int id;
+        long id;
         string name;
+        string fullname;
         List<JsonNamespace> childNamespaces = new List<JsonNamespace>();
         List<JsonClass> classes = new List<JsonClass>();
 
-        public JsonNamespace(int id, string name)
+        public JsonNamespace(long id, string name, string fullname)
         {
             this.Id = id;
             this.Name = name;
+            this.fullname = fullname;
         }
 
         public static JsonProject Project { get => project; set => project = value; }
         [JsonProperty]
-        public int Id { get => id; set => id = value; }
+        public long Id { get => id; set => id = value; }
         [JsonProperty]
         public string Name { get => name; set => name = value; }
+        [JsonProperty]
+        public string Fullname { get => fullname; set => fullname = value; }
         [JsonProperty("Namespaces")]
         internal List<JsonNamespace> ChildNamespaces { get => childNamespaces; set => childNamespaces = value; }
         [JsonProperty("Classes")]
@@ -40,9 +43,8 @@ namespace ProjectParser
 
             if (!namespaces.TryGetValue(name, out onamespace))
             {
-                onamespace = new JsonNamespace(currentId++, name);
+                onamespace = new JsonNamespace(JsonProject.Nextid++, name.Substring(name.LastIndexOf('.')+1), name);
                 namespaces.Add(name, onamespace);
-                //project.Namespaces.Add(onamespace);
 
                 // Add namespaces hierarchy to project
                 string[] namespaceParts = name.Split('.');
@@ -52,11 +54,11 @@ namespace ProjectParser
                 // Build/traverse namespaces hierarchy
                 for (int i = 0; i < namespaceParts.Length - 1; i++)
                 {
-                    JsonNamespace ns = new JsonNamespace(currentId, nameprefix + namespaceParts[i]);
+                    JsonNamespace ns = new JsonNamespace(JsonProject.Nextid, namespaceParts[i], nameprefix + namespaceParts[i]);
                     int idx = nslist.IndexOf(ns);
                     if (idx < 0)
                     {
-                        currentId++;
+                        JsonProject.Nextid++;
                         nslist.Add(ns);
                     }
                     else
@@ -82,12 +84,12 @@ namespace ProjectParser
         public bool Equals(JsonNamespace other)
         {
             return other != null &&
-                   name == other.name;
+                   fullname == other.fullname;
         }
 
         public override int GetHashCode()
         {
-            return 363513814 + EqualityComparer<string>.Default.GetHashCode(name);
+            return 363513814 + EqualityComparer<string>.Default.GetHashCode(fullname);
         }
     }
 }

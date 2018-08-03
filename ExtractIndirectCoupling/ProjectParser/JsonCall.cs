@@ -10,15 +10,15 @@ namespace ProjectParser
     [JsonObject(MemberSerialization.OptIn, Description = "Method")]
     class JsonCall : IEquatable<JsonCall>, ICloneable
     {
-        int id;
+        long id;
         string name;
-        int classId;
+        long classId;
         string className;
-        int workspaceId;
+        long workspaceId;
         string workspaceName;
         JsonMethod method;
 
-        public JsonCall(int id, string name, int classId, string className, int workspaceId, string workspaceName, JsonMethod method)
+        public JsonCall(long id, string name, long classId, string className, long workspaceId, string workspaceName, JsonMethod method)
         {
             this.id = id;
             this.name = name;
@@ -30,15 +30,15 @@ namespace ProjectParser
         }
 
         [JsonProperty]
-        public int Id { get => id; set => id = value; }
+        public long Id { get => id; set => id = value; }
         [JsonProperty]
         public string Name { get => name; set => name = value; }
         [JsonProperty("ClassId")]
-        public int ClassId { get => classId; set => classId = value; }
+        public long ClassId { get => classId; set => classId = value; }
         [JsonProperty("Class")]
         public string ClassName { get => className; set => className = value; }
         [JsonProperty("NamespaceId")]
-        public int WorkspaceId { get => workspaceId; set => workspaceId = value; }
+        public long WorkspaceId { get => workspaceId; set => workspaceId = value; }
         [JsonProperty("Namespace")]
         public string WorkspaceName { get => workspaceName; set => workspaceName = value; }
         public JsonMethod Metodo { get => method; set => method = value; }

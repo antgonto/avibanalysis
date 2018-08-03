@@ -10,27 +10,29 @@ namespace ProjectParser
     [JsonObject(MemberSerialization.OptIn, Description = "Class")]
     class JsonClass
     {
-        static int currentId = 0;
         static Dictionary<string, JsonClass> classes = new Dictionary<string, JsonClass>();
-        int id;
-        string name, spell;
+        long id;
+        string name, fullname;
         JsonNamespace onamespace;
         List<JsonAttribute> attributes = new List<JsonAttribute>();
         List<JsonMethod> methods = new List<JsonMethod>();
 
-        public JsonClass(int id, string name, JsonNamespace onamespace)
+        public JsonClass(long id, string name, string fullname, JsonNamespace onamespace)
         {
             this.id = id;
             this.name = name;
+            this.fullname = fullname;
             this.onamespace = onamespace;
         }
 
         [JsonProperty]
-        public int Id { get => id; set => id = value; }
+        public long Id { get => id; set => id = value; }
         [JsonProperty]
         public string Name { get => name; set => name = value; }
+        [JsonProperty]
+        public string Fullname { get => fullname; set => fullname = value; }
         [JsonProperty("NamespaceId")]
-        public int NamespaceId { get => onamespace.Id; set => onamespace.Id = value; }
+        public long NamespaceId { get => onamespace.Id; set => onamespace.Id = value; }
         [JsonProperty("Namespace")]
         public string NamespaceName { get => onamespace.Name; set => onamespace.Name = value; }
         //[JsonProperty("Attributes")]
@@ -47,7 +49,7 @@ namespace ProjectParser
             if (!classes.TryGetValue(onamespace + "." + name, out oclass))
             {
                 JsonNamespace p = JsonNamespace.GetNamespace(onamespace);
-                oclass = new JsonClass(currentId++, name, p);
+                oclass = new JsonClass(JsonProject.Nextid++, name, onamespace + "." + name, p);
                 classes.Add(onamespace + "." + name, oclass);
                 p.Classes.Add(oclass);
             }

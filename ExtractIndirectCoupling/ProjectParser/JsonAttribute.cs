@@ -10,15 +10,13 @@ namespace ProjectParser
     [JsonObject(MemberSerialization.OptIn, Description = "Attribute")]
     class JsonAttribute
     {
-        static int currentId = 0;
-
-        int id;
+        long id;
         string name;
         JsonClass oClass;
         JsonNamespace oNamespace;
         static Dictionary<string, JsonAttribute> attributes = new Dictionary<string, JsonAttribute>();
         List<JsonCall> calledBy = new List<JsonCall>();
-        public JsonAttribute(int id, string name, JsonClass clase, JsonNamespace workspace)
+        public JsonAttribute(long id, string name, JsonClass clase, JsonNamespace workspace)
         {
             this.id = id;
             this.name = name;
@@ -33,7 +31,7 @@ namespace ProjectParser
             if (!attributes.TryGetValue(workspace + "." + clase + "." + name, out oAttribute))
             {
                 JsonClass c = ProjectParser.JsonClass.GetClass(clase, workspace);
-                oAttribute = new JsonAttribute(currentId++, name, c, JsonNamespace.GetNamespace(workspace));
+                oAttribute = new JsonAttribute(JsonProject.Nextid++, name, c, JsonNamespace.GetNamespace(workspace));
                 attributes.Add(workspace + "." + clase + "." + name, oAttribute);
                 c.Attributes.Add(oAttribute);
             }
@@ -42,19 +40,19 @@ namespace ProjectParser
         }
 
         [JsonProperty]
-        public int Id { get => id; set => id = value; }
-            [JsonProperty]
-            public string Name { get => name; set => name = value; }
-            [JsonProperty("ClassId")]
-            public int ClaseId { get => oClass.Id; set => oClass.Id = value; }
-            [JsonProperty("Class")]
-            public string ClaseName { get => oClass.Name; set => oClass.Name = value; }
-            [JsonProperty("NamespaceId")]
-            public int NamespaceId { get => oNamespace.Id; set => oNamespace.Id = value; }
-            [JsonProperty("Namespace")]
-            public string NamespaceName { get => oNamespace.Name; set => oNamespace.Name = value; }
-            [JsonProperty]
-            internal List<JsonCall> CalledBy { get => calledBy; set => calledBy = value; }
+        public long Id { get => id; set => id = value; }
+        [JsonProperty]
+        public string Name { get => name; set => name = value; }
+        [JsonProperty("ClassId")]
+        public long ClaseId { get => oClass.Id; set => oClass.Id = value; }
+        [JsonProperty("Class")]
+        public string ClaseName { get => oClass.Name; set => oClass.Name = value; }
+        [JsonProperty("NamespaceId")]
+        public long NamespaceId { get => oNamespace.Id; set => oNamespace.Id = value; }
+        [JsonProperty("Namespace")]
+        public string NamespaceName { get => oNamespace.Name; set => oNamespace.Name = value; }
+        [JsonProperty]
+        internal List<JsonCall> CalledBy { get => calledBy; set => calledBy = value; }
         internal JsonClass OClass { get => oClass; set => oClass = value; }
         internal JsonNamespace ONamespace { get => oNamespace; set => oNamespace = value; }
         
