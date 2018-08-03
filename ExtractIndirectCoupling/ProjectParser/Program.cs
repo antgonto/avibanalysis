@@ -11,6 +11,8 @@ using Microsoft.CodeAnalysis.CSharp.Symbols;
 using System.Windows.Forms;
 using System.Reflection;
 using Newtonsoft.Json;
+using Neo4jClient;
+using Neo4j.Driver.V1;
 
 //Tools> Nugget>Console
 // Install-Package Microsoft.CodeAnalysis
@@ -188,6 +190,8 @@ namespace ProjectParser
                     }
                 }
             }
+
+            connectNeo4J(project);
             FolderBrowserDialog salida = new FolderBrowserDialog();
             System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\Steven\Documents\GitHub\AnalizadorDFSMaster\AnalizadorDFS\output.txt");
             if (salida.ShowDialog() == DialogResult.OK)
@@ -195,7 +199,6 @@ namespace ProjectParser
                 output = new System.IO.StreamWriter(@"" + salida.SelectedPath + "\\output.txt");
 
             }
-
             JsonMetodo.RunDFS(project);
 
             JsonSerializer serializer = new JsonSerializer();
@@ -512,6 +515,10 @@ namespace ProjectParser
             //*                                             *
             //***********************************************
 
+            //***********************************************
+           
+
+            //***********************************************
             Grafo grafo = new Grafo(listaMetodos);
             //grafo.imprimirMatrizAdyacencia();
             Console.WriteLine("\n\n");
@@ -728,5 +735,6 @@ namespace ProjectParser
             }
             return null;
         }
+       
     }
 }
