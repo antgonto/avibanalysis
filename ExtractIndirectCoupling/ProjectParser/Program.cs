@@ -103,7 +103,7 @@ namespace ProjectParser
         private static void ExtractGraphFromAST(JsonProject project, Compilation myCompilation, string path)
         {
             // Send output to a file
-            System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\graph_info.txt");
+            System.IO.StreamWriter output = new System.IO.StreamWriter(@"" + path + @"\graph_info.txt");
 
             List<SemanticModel> semanticModels = new List<SemanticModel>();
             List<SyntaxNode> roots = new List<SyntaxNode>();
@@ -239,7 +239,7 @@ namespace ProjectParser
 
                 JsonSerializer serializer = new JsonSerializer();
 
-                using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + "\\" + project.Name + ".json"))
+                using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
                 using (JsonWriter writer = new JsonTextWriter(sw))
                 {
                     serializer.Serialize(writer, project);
