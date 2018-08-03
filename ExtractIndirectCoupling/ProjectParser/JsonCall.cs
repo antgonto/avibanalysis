@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace ProjectParser
 {
-    [JsonObject(MemberSerialization.OptIn, Description = "Metodo")]
+    [JsonObject(MemberSerialization.OptIn, Description = "Method")]
     class JsonCall : IEquatable<JsonCall>, ICloneable
     {
         int id;
@@ -16,9 +16,9 @@ namespace ProjectParser
         string className;
         int workspaceId;
         string workspaceName;
-        JsonMetodo metodo;
+        JsonMethod method;
 
-        public JsonCall(int id, string name, int classId, string className, int workspaceId, string workspaceName, JsonMetodo metodo)
+        public JsonCall(int id, string name, int classId, string className, int workspaceId, string workspaceName, JsonMethod method)
         {
             this.id = id;
             this.name = name;
@@ -26,7 +26,7 @@ namespace ProjectParser
             this.className = className;
             this.workspaceId = workspaceId;
             this.workspaceName = workspaceName;
-            this.metodo = metodo;
+            this.method = method;
         }
 
         [JsonProperty]
@@ -41,7 +41,7 @@ namespace ProjectParser
         public int WorkspaceId { get => workspaceId; set => workspaceId = value; }
         [JsonProperty("Namespace")]
         public string WorkspaceName { get => workspaceName; set => workspaceName = value; }
-        public JsonMetodo Metodo { get => metodo; set => metodo = value; }
+        public JsonMethod Metodo { get => method; set => method = value; }
 
         public object Clone()
         {

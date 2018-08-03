@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Ejemplo1
+namespace edu.tec.avib
 {
     class Program
     {

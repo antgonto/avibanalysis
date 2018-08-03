@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Ejemplo1
+namespace edu.tec.avib
 {
     class A
     {
@@ -35,7 +35,7 @@ namespace Ejemplo1
             clasec.metodoC1();
 
              int caseSwitch = 1;
-      
+
 		      switch (caseSwitch)
 		      {
 		          case 1:

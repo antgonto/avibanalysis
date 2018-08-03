@@ -132,19 +132,19 @@ namespace ProjectParser
                 {
                     SyntaxNode classDec = FindClass(declaracionDeMetodoActual);
                     NamespaceDeclarationSyntax namespaceDec = FindNamespace(classDec);
-                    JsonMetodo m = JsonMetodo.GetMetodo(
+                    JsonMethod m = JsonMethod.GetMethod(
                         declaracionDeMetodoActual.Identifier.ToString(),
                         FindClassName(classDec),
                         namespaceDec == null ? "" : namespaceDec.Name.ToString());
 
                     output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-15} {4,-15} {5,-15}",
-                                                   m.Name, m.ClaseName, m.PaqueteName, m.Id, m.ClaseId, m.PaqueteId));
+                                                   m.Name, m.ClassName, m.NamespaceName, m.Id, m.ClassId, m.NamespaceId));
                 }
 
-                //Obtengo todas las clases del modelo.
+                //Obtengo todas las classes del modelo.
                 classDeclarationSyntax = roots[i].DescendantNodes().OfType<ClassDeclarationSyntax>().ToList();
 
-                //Recorro las clases para obtener sus atributos
+                //Recorro las classes para obtener sus attributes
                 foreach (ClassDeclarationSyntax claseActual in classDeclarationSyntax)
                 {
                     NamespaceDeclarationSyntax namespaceDec = FindNamespace(claseActual);
@@ -156,7 +156,7 @@ namespace ProjectParser
                         List<VariableDeclaratorSyntax> listaVariables = declaracion.DescendantNodes().OfType<VariableDeclaratorSyntax>().ToList();
                         foreach (VariableDeclaratorSyntax variable in listaVariables)
                         {
-                            JsonAtributo.GetAtributo(
+                            JsonAttribute.GetAttribute(
                                 variable.Identifier.ToString(),
                                 claseActual.Identifier.ToString(),
                                 namespaceDec == null ? "" : namespaceDec.Name.ToString());
@@ -185,27 +185,27 @@ namespace ProjectParser
                             IMethodSymbol iSymbol = symbol as IMethodSymbol;
                             if (!iSymbol.MethodKind.ToString().Equals("ReducedExtension"))
                             {
-                                JsonMetodo caller = JsonMetodo.GetMetodo(FindMethodName(methodDec),
+                                JsonMethod caller = JsonMethod.GetMethod(FindMethodName(methodDec),
                                     FindClassName(classDec), namespaceDec == null ? "" : namespaceDec.Name.ToString());
 
                                 string mname = iSymbol.Name;
                                 string cname = iSymbol.ContainingSymbol.Name;
                                 string nname = iSymbol.ContainingNamespace.ToString();
 
-                                JsonMetodo callee = JsonMetodo.GetMetodo(mname, cname, nname);
+                                JsonMethod callee = JsonMethod.GetMethod(mname, cname, nname);
 
-                                JsonCall callerEntry = new JsonCall(caller.Id, caller.Name, caller.ClaseId, caller.ClaseName, caller.PaqueteId, caller.PaqueteName, caller);
-                                JsonCall calleeEntry = new JsonCall(callee.Id, callee.Name, callee.ClaseId, callee.ClaseName, callee.PaqueteId, callee.PaqueteName, callee);
+                                JsonCall callerEntry = new JsonCall(caller.Id, caller.Name, caller.ClassId, caller.ClassName, caller.NamespaceId, caller.NamespaceName, caller);
+                                JsonCall calleeEntry = new JsonCall(callee.Id, callee.Name, callee.ClassId, callee.ClassName, callee.NamespaceId, callee.NamespaceName, callee);
 
                                 if (!callee.CalledBy.Contains(callerEntry))
                                 {
                                     output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-150} {4,-150} {5,-150} {6,-15} {7,-15} {8,-15} {9,-15} {10,-15} {11,-15}",
                                                                    caller.Name, callee.Name,
-                                                                   caller.ClaseName, callee.ClaseName,
-                                                                   caller.PaqueteName, callee.PaqueteName,
+                                                                   caller.ClassName, callee.ClassName,
+                                                                   caller.NamespaceName, callee.NamespaceName,
                                                                    caller.Id, callee.Id,
-                                                                   caller.ClaseId, callee.ClaseId,
-                                                                   caller.PaqueteId, callee.PaqueteId));
+                                                                   caller.ClassId, callee.ClassId,
+                                                                   caller.NamespaceId, callee.NamespaceId));
                                 }
 
                                 if (!callee.CalledBy.Contains(callerEntry)) callee.CalledBy.Add(callerEntry);
@@ -223,7 +223,7 @@ namespace ProjectParser
         public static void JsonStructure()
         {
             JsonProject project = new JsonProject();
-            JsonPaquete.Project = project;
+            JsonNamespace.Project = project;
 
             Compilation myCompilation = CreateTestCompilation();//Llama a la clase para crear la lista de archivos
 
@@ -234,8 +234,9 @@ namespace ProjectParser
             {
                 ExtractGraphFromAST(project, myCompilation, salida.SelectedPath);
 
-                JsonMetodo.CountChainsUsingDFS(project);
-                //JsonMetodo.CollectChainsUsingDFS(project);
+                // Disabled until runing time issue is solved!
+                //JsonMethod.CountChainsUsingDFS(project);
+                //JsonMethod.CollectChainsUsingDFS(project);
 
                 JsonSerializer serializer = new JsonSerializer();
 
@@ -274,7 +275,7 @@ namespace ProjectParser
             for (int i = 0; i < semanticModels.Count; i++)
             {
                 //Obtengo todas las declaraciones de metodos en el modelo semantico.
-                //Obtengo todas las clases del modelo.
+                //Obtengo todas las classes del modelo.
                 declarationSyntax = roots[i].DescendantNodes().OfType<MethodDeclarationSyntax>().ToList();
                 classDeclarationSyntax = roots[i].DescendantNodes().OfType<ClassDeclarationSyntax>().ToList();
                 cantidadClases += classDeclarationSyntax.Count;
@@ -366,7 +367,7 @@ namespace ProjectParser
                         }
                     }
                 }
-                //Recorro las clases para obtener sus atributos
+                //Recorro las classes para obtener sus attributes
                 foreach (ClassDeclarationSyntax claseActual in classDeclarationSyntax)
                 {
 
@@ -505,9 +506,9 @@ namespace ProjectParser
                                             llamador.ListaLlamadas.Add(nuevaLlamada);
                                         }
 
-                                        /*Console.WriteLine("JsonClase: " + classSyntax.Identifier);
+                                        /*Console.WriteLine("JsonClass: " + classSyntax.Identifier);
                                         Console.WriteLine("Metodo que invoca: " + declarationSyntax.ElementAt(i).Identifier);
-                                        Console.WriteLine("JsonClase invocada: " + currentSemanticModel.GetSymbolInfo(expression).Symbol.ContainingType.Name);
+                                        Console.WriteLine("JsonClass invocada: " + currentSemanticModel.GetSymbolInfo(expression).Symbol.ContainingType.Name);
                                         Console.WriteLine("Metodo invocado: " + currentSemanticModel.GetSymbolInfo(expression).Symbol.Name);
                                         Console.WriteLine("--------------------------------------");*/
 
@@ -526,14 +527,14 @@ namespace ProjectParser
              if (listaMetodos !=null) {
                  foreach (Metodo invocacion in listaMetodos)
                  {
-                     Console.WriteLine("JsonClase: "+invocacion.JsonClase);
+                     Console.WriteLine("JsonClass: "+invocacion.JsonClass);
                     Console.WriteLine("Tipo: " + invocacion.Tipo);
                     Console.WriteLine("Método/Atributo: "+invocacion.Nombre);
-                     Console.WriteLine("Cantidad de metodos/atributos que llama: "+invocacion.ListaLlamadas.Count());
+                     Console.WriteLine("Cantidad de metodos/attributes que llama: "+invocacion.ListaLlamadas.Count());
                     Console.WriteLine("\t----------------------------------------------------------");
                     for (int i = 0; i < invocacion.ListaLlamadas.Count(); i++)
                      {
-                        Console.WriteLine("\t JsonClase: " + invocacion.ListaLlamadas.ElementAt(i).JsonClase);
+                        Console.WriteLine("\t JsonClass: " + invocacion.ListaLlamadas.ElementAt(i).JsonClass);
                         Console.WriteLine("\t Método: " + invocacion.ListaLlamadas.ElementAt(i).Metodo_atributo);
                         Console.WriteLine("\t Tipo: " + invocacion.ListaLlamadas.ElementAt(i).Tipo);
                         Console.WriteLine("\t----------------------------------------------------------");
@@ -590,7 +591,7 @@ namespace ProjectParser
             {
                 if (invocacion.EsLlamador || invocacion.EsLlamado)
                 {
-                    output.WriteLine("JsonClase: " + invocacion.JsonClase);
+                    output.WriteLine("JsonClass: " + invocacion.JsonClass);
                     output.WriteLine("Tipo: " + invocacion.Tipo);
                     output.WriteLine("Método/Atributo: " + invocacion.Nombre);
                     output.WriteLine("CYCLO: " + invocacion.ComplejidadCiclomatica);
@@ -637,7 +638,7 @@ namespace ProjectParser
                 if (invocacion.EsLlamador || invocacion.EsLlamado)
                 {
                     output.WriteLine(String.Format("{0,-6} {1,10:N2} {2,10} {3,10} {4,10} {5,10:N2} {6,10:N2} {7,10:N2} {8,10} {9,10} {10,10} {11,10} {12,10} {13,10}",
-                                    i + 2, //invocacion.JsonClase + "."+ invocacion.Nombre, 
+                                    i + 2, //invocacion.JsonClass + "."+ invocacion.Nombre, 
                                     metrics.ExportNormal.NormalizeCycloMax(invocacion.ExportCLYCLOMax),
                                     invocacion.ExportLOCSum, invocacion.ExportCLYCLOSum, invocacion.ExportConstantSum,
                                     invocacion.ExportLOCAvg, invocacion.ExportCLYCLOAvg, invocacion.ExportConstantAvg,
@@ -669,7 +670,7 @@ namespace ProjectParser
                 if (invocacion.EsLlamador || invocacion.EsLlamado)
                 {
                     output.WriteLine(String.Format("{0,-6} {1,10:N2} {2,10} {3,10} {4,10} {5,10:N2} {6,10:N2} {7,10:N2} {8,10} {9,10} {10,10} {11,10} {12,10} {13,10}",
-                                                   i + 1, //invocacion.JsonClase + "." + invocacion.Nombre, 
+                                                   i + 1, //invocacion.JsonClass + "." + invocacion.Nombre, 
                                                    metrics.ImportNormal.NormalizeCycloMax(invocacion.ImportCLYCLOMax),
                                                    invocacion.ImportLOCSum, invocacion.ImportCLYCLOSum, invocacion.ImportConstantSum,
                                                    invocacion.ImportLOCAvg, invocacion.ImportCLYCLOAvg, invocacion.ImportConstantAvg,
@@ -707,7 +708,7 @@ namespace ProjectParser
             }
             output.WriteLine("\n\nCantidad de LOC: " + Metodo.TotalDeLOC);
             output.WriteLine("Cantidad de métodos: " + Metodo.CantidadMetodos);
-            output.WriteLine("Cantidad de clases: " + cantidadClases);
+            output.WriteLine("Cantidad de classes: " + cantidadClases);
             output.WriteLine("Cadena más larga: " + grafo.CantidadMayorMetodosEnCadena);
             output.WriteLine("Cantidad de cadenas: " + grafo.ListaDeCadenas.Count);
 
@@ -717,7 +718,7 @@ namespace ProjectParser
         }
 
         [STAThread]
-        private static Compilation CreateTestCompilation()//JsonClase para la creacion de los árboles de sintaxis
+        private static Compilation CreateTestCompilation()//JsonClass para la creacion de los árboles de sintaxis
         {
             FolderBrowserDialog entrada = new FolderBrowserDialog();
             entrada.SelectedPath = @"C:\Users\jnavas\source\repos";

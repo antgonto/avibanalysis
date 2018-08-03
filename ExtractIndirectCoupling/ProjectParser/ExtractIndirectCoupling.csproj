@@ -168,19 +168,19 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Chains.cs" />
-    <Compile Include="JsonAtributo.cs" />
+    <Compile Include="JsonAttribute.cs" />
     <Compile Include="JsonCall.cs" />
-    <Compile Include="JsonClase.cs" />
+    <Compile Include="JsonClass.cs" />
     <Compile Include="Eslavon.cs" />
     <Compile Include="Grafo.cs" />
     <Compile Include="JsonProject.cs" />
     <Compile Include="Llamada.cs" />
-    <Compile Include="JsonMetodo.cs" />
+    <Compile Include="JsonMethod.cs" />
     <Compile Include="Metodo.cs" />
     <Compile Include="MetricCalculator.cs" />
     <Compile Include="Normalizer.cs" />
     <Compile Include="Pair.cs" />
-    <Compile Include="JsonPaquete.cs" />
+    <Compile Include="JsonNamespace.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
