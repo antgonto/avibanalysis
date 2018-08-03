@@ -11,6 +11,7 @@ using Microsoft.CodeAnalysis.CSharp.Symbols;
 using System.Windows.Forms;
 using System.Reflection;
 using Newtonsoft.Json;
+using Neo4j.Driver.V1;
 
 //Tools> Nugget>Console
 // Install-Package Microsoft.CodeAnalysis
@@ -229,10 +230,13 @@ namespace ProjectParser
 
             FolderBrowserDialog salida = new FolderBrowserDialog();
             salida.Description = @"Output folder";
-            salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
+           // salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
+            salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
             if (salida.ShowDialog() == DialogResult.OK)
             {
                 ExtractGraphFromAST(project, myCompilation, salida.SelectedPath);
+
+                connectNeo4J(project);
 
                 // Disabled until runing time issue is solved!
                 //JsonMethod.CountChainsUsingDFS(project);
@@ -721,7 +725,8 @@ namespace ProjectParser
         private static Compilation CreateTestCompilation()//JsonClass para la creacion de los árboles de sintaxis
         {
             FolderBrowserDialog entrada = new FolderBrowserDialog();
-            entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
+            //entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
+            entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
             entrada.Description = @"Input folder";
             if (entrada.ShowDialog() == DialogResult.OK)
             {
@@ -772,5 +777,38 @@ namespace ProjectParser
             }
             return null;
         }
+        private static void connectNeo4J(JsonProject project)
+        {
+            System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\Steven\Desktop\queryNeo4J.txt");
+
+            var driver = GraphDatabase.Driver("bolt://localhost", AuthTokens.Basic("neo4j", "123"));
+            int namespacesCount = 0, classesCount = 0, methodsCount = 0;
+            var session = driver.Session();
+            string query = "";
+            query += "CREATE(project:Project {name:" + "'" + project.Name + "'" + "}) \n";
+            foreach (JsonNamespace namespaces in project.Namespaces)
+            {
+                query += "CREATE (namespaces" + namespacesCount + ":Namespace {name:" + "'" + namespaces.Name + "'"
+                        + ", idLocal:" + "'" + namespaces.Id + "'})\n";
+                query += "CREATE (namespaces" + namespacesCount + ")-[:ParentOfWorkspace]->(project) \n";
+                foreach (JsonClass classes in namespaces.Classes)
+                {
+                    foreach (JsonMethod method in classes.Methods)
+                    {
+                        query += "CREATE (method" + methodsCount + ":Method {name:" + "'" + method.Name + "'" +
+                            ", class:" + "'" + method.ClassName + "'" + "}) \n";
+                        methodsCount++;
+                    }
+                    classesCount++;
+                }
+                namespacesCount++;
+            }
+            session.Run(query);
+            output.Write(query);
+            output.Flush();
+            Console.ReadLine();
+
+        }
     }
+
 }

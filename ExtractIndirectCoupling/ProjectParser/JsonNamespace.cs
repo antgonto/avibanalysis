@@ -32,7 +32,7 @@ namespace ProjectParser
         [JsonProperty("Namespaces")]
         internal List<JsonNamespace> ChildNamespaces { get => childNamespaces; set => childNamespaces = value; }
         [JsonProperty("Classes")]
-        public List<JsonClass> Clases { get => classes; set => classes = value; }
+        public List<JsonClass> Classes { get => classes; set => classes = value; }
 
         public static JsonNamespace GetNamespace(string name)
         {

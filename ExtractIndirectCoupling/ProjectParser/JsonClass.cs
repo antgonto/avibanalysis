@@ -49,7 +49,7 @@ namespace ProjectParser
                 JsonNamespace p = JsonNamespace.GetNamespace(onamespace);
                 oclass = new JsonClass(currentId++, name, p);
                 classes.Add(onamespace + "." + name, oclass);
-                p.Clases.Add(oclass);
+                p.Classes.Add(oclass);
             }
 
             return oclass;
