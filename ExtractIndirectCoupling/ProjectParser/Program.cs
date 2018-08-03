@@ -11,7 +11,6 @@ using Microsoft.CodeAnalysis.CSharp.Symbols;
 using System.Windows.Forms;
 using System.Reflection;
 using Newtonsoft.Json;
-using Neo4jClient;
 using Neo4j.Driver.V1;
 
 //Tools> Nugget>Console
@@ -218,9 +217,6 @@ namespace ProjectParser
                 }
             }
 
-<<<<<<< HEAD
-            connectNeo4J(project);
-=======
             output.Flush();
         }
 
@@ -232,23 +228,16 @@ namespace ProjectParser
 
             Compilation myCompilation = CreateTestCompilation();//Llama a la clase para crear la lista de archivos
 
->>>>>>> e8d3e9b9a9f940e509f0c88e1d01b57fcc27a88e
             FolderBrowserDialog salida = new FolderBrowserDialog();
             salida.Description = @"Output folder";
-            salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
+           // salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
+            salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
             if (salida.ShowDialog() == DialogResult.OK)
             {
-<<<<<<< HEAD
-                output = new System.IO.StreamWriter(@"" + salida.SelectedPath + "\\output.txt");
-
-            }
-            JsonMetodo.RunDFS(project);
-=======
                 ExtractGraphFromAST(project, myCompilation, salida.SelectedPath);
-
+                connectNeo4J(project);
                 JsonMetodo.CountChainsUsingDFS(project);
                 //JsonMetodo.CollectChainsUsingDFS(project);
->>>>>>> e8d3e9b9a9f940e509f0c88e1d01b57fcc27a88e
 
                 JsonSerializer serializer = new JsonSerializer();
 
@@ -566,10 +555,6 @@ namespace ProjectParser
             //*                                             *
             //***********************************************
 
-            //***********************************************
-           
-
-            //***********************************************
             Grafo grafo = new Grafo(listaMetodos);
             //grafo.imprimirMatrizAdyacencia();
             Console.WriteLine("\n\n");
@@ -737,7 +722,8 @@ namespace ProjectParser
         private static Compilation CreateTestCompilation()//JsonClase para la creacion de los árboles de sintaxis
         {
             FolderBrowserDialog entrada = new FolderBrowserDialog();
-            entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
+            //entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
+            entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
             entrada.Description = @"Input folder";
             if (entrada.ShowDialog() == DialogResult.OK)
             {
@@ -788,6 +774,38 @@ namespace ProjectParser
             }
             return null;
         }
-       
+        private static void connectNeo4J(JsonProject project)
+        {
+            System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\Steven\Desktop\queryNeo4J.txt");
+
+            var driver = GraphDatabase.Driver("bolt://localhost", AuthTokens.Basic("neo4j", "123"));
+            int contadorWorkspaces = 0, contadorClasses = 0, contadorMetodos = 0;
+            var session = driver.Session();
+            string query = "";
+            query += "CREATE(project:Project {name:" + "'" + project.Name + "'" + "}) \n";
+            foreach (JsonPaquete workspaces in project.Workspaces)
+            {
+                query += "CREATE (workspaces" + contadorWorkspaces + ":Workspace {name:" + "'" + workspaces.Name + "'"
+                        + ", idLocal:" + "'" + workspaces.Id + "'})\n";
+                query += "CREATE (workspaces" + contadorWorkspaces + ")-[:ParentOfWorkspace]->(project) \n";
+                foreach (JsonClase classes in workspaces.Clases)
+                {
+                    foreach (JsonMetodo method in classes.Metodos)
+                    {
+                        query += "CREATE (metod" + contadorMetodos + ":Method {name:" + "'" + method.Name + "'" +
+                            ", class:" + "'" + method.ClaseName + "'" + "}) \n";
+                        contadorMetodos++;
+                    }
+                    contadorClasses++;
+                }
+                contadorWorkspaces++;
+            }
+            session.Run(query);
+            output.Write(query);
+            output.Flush();
+            Console.ReadLine();
+
+        }
     }
+
 }
