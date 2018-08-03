@@ -76,7 +76,7 @@ namespace ProjectParser
                 total_no_llamados--;
             }
 
-            avgdepth = avgdepth / count;
+            if (count > 0) avgdepth = avgdepth / count;
         }
 
         static void CountDFS(JsonMetodo m, ulong depth, ref ulong avgdepth, ref ulong count, JsonProject project)
