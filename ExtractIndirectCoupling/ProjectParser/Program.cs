@@ -103,13 +103,15 @@ namespace ProjectParser
         [STAThread]
         private static void ExtractGraphFromAST(JsonProject project, Compilation myCompilation, string path)
         {
+
+            Dictionary<string, JsonMethod> nodoNamespacesNeo4J = new Dictionary<string, JsonMethod>();
             // Send output to a file
             System.IO.StreamWriter output = new System.IO.StreamWriter(@"" + path + @"\graph_info.txt");
 
             List<SemanticModel> semanticModels = new List<SemanticModel>();
             List<SyntaxNode> roots = new List<SyntaxNode>();
             project.Name = myCompilation.AssemblyName;
-
+            
             foreach (SyntaxTree sourceTree in myCompilation.SyntaxTrees)//Loop para recorrer la lista de archivos
             {
                 roots.Add(sourceTree.GetRoot());//Obtiene el root de cada árbol de clase
@@ -238,13 +240,13 @@ namespace ProjectParser
 
             FolderBrowserDialog salida = new FolderBrowserDialog();
             salida.Description = @"Output folder";
-            salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
-            //salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
+            //salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
+            salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
             if (salida.ShowDialog() == DialogResult.OK)
             {
                 ExtractGraphFromAST(project, myCompilation, salida.SelectedPath);
 
-                //connectNeo4J(project);
+                connectNeo4J(project);
 
                 // Disabled until runing time issue is solved!
                 //JsonMethod.CountChainsUsingDFS(project);
@@ -734,8 +736,8 @@ namespace ProjectParser
         private static Compilation CreateTestCompilation()//JsonClass para la creacion de los árboles de sintaxis
         {
             FolderBrowserDialog entrada = new FolderBrowserDialog();
-            entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
-            //entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
+            //entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
+            entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
             entrada.Description = @"Input folder";
             if (entrada.ShowDialog() == DialogResult.OK)
             {
@@ -794,18 +796,24 @@ namespace ProjectParser
             int namespacesCount = 0, classesCount = 0, methodsCount = 0;
             var session = driver.Session();
             string query = "";
-            query += "CREATE(project:Project {name:" + "'" + project.Name + "'" + "}) \n";
+            query += "CREATE(project:Project {nameProject:" + "'" + project.Name + "'" + "}) \n";
             foreach (JsonNamespace namespaces in project.Namespaces)
             {
-                query += "CREATE (namespaces" + namespacesCount + ":Namespace {name:" + "'" + namespaces.Name + "'"
+                query += "CREATE (namespaces" + namespacesCount + ":Namespace {nameNamespaces:" + "'" + namespaces.Name + "'"
                         + ", idLocal:" + "'" + namespaces.Id + "'})\n";
                 query += "CREATE (namespaces" + namespacesCount + ")-[:ParentOfWorkspace]->(project) \n";
                 foreach (JsonClass classes in namespaces.Classes)
                 {
+                    
+                       query += "CREATE (class" + classesCount + ":Clase {nameClass:" + "'" + classes.Name + "'"
+                        + ", idLocal:" + "'" + namespaces.Id + "'})\n";
+                    query += "CREATE (class" + classesCount + ")-[:ParentOfClass]->("+ "namespaces" + namespacesCount+") \n";
                     foreach (JsonMethod method in classes.Methods)
                     {
-                        query += "CREATE (method" + methodsCount + ":Method {name:" + "'" + method.Name + "'" +
+                        query += "CREATE (method" + methodsCount + ":Method {nameMethod:" + "'" + method.Name + "'" +
                             ", class:" + "'" + method.ClassName + "'" + "}) \n";
+                        query += "CREATE (method" + methodsCount + ")-[:ParentOfMethod]->(" + "class" + classesCount + ") \n";
+
                         methodsCount++;
                     }
                     classesCount++;
