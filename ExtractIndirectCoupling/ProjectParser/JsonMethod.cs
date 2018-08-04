@@ -25,6 +25,10 @@ namespace ProjectParser
         HashSet<JsonCall> calls = new HashSet<JsonCall>();
         HashSet<JsonCall> calledBy = new HashSet<JsonCall>();
 
+        // Floyd-Warshall Transitive Closure
+        SortedList<long, JsonCall> tc_calls = new SortedList<long, JsonCall>();
+        SortedList<long, JsonCall> tc_calledBy = new SortedList<long, JsonCall>();
+
         static Dictionary<string, JsonMethod> methods = new Dictionary<string, JsonMethod>();
         static List<JsonMethod> sccList = new List<JsonMethod>();
 
@@ -32,7 +36,6 @@ namespace ProjectParser
         bool visited = false;
         long pre;
         static long prev = 0;
-        static long idx = 0;
         static Stack<JsonMethod> p = new Stack<JsonMethod>();
         static Stack<JsonMethod> r = new Stack<JsonMethod>();
 
@@ -108,7 +111,12 @@ namespace ProjectParser
                 non_called_count--;
             }
 
-            if (count > 0) avgdepth = avgdepth / count;
+            if (count > 0)
+            {
+                avgdepth = avgdepth / count;
+                Console.WriteLine("# of Chains: " + count.ToString() + ", AVG Length: " + avgdepth.ToString());
+                Console.Read();
+            }
         }
 
         static void CountDFS(JsonMethod m, ulong depth, ref ulong avgdepth, ref ulong count, JsonProject project)
@@ -225,7 +233,6 @@ namespace ProjectParser
         public bool Visited { get => visited; set => visited = value; }
         public long Pre { get => pre; set => pre = value; }
         public static long Prev { get => prev; set => prev = value; }
-        public static long Idx { get => idx; set => idx = value; }
         internal static Stack<JsonMethod> P { get => p; set => p = value; }
         internal static Stack<JsonMethod> R { get => r; set => r = value; }
         public long SccId { get => sccId; set => sccId = value; }
@@ -239,5 +246,7 @@ namespace ProjectParser
         public int AmountLines { get => amountLines; set => amountLines = value; }
         public int Constant { get => constant; set => constant = value; }
         public int CyclomaticComplexity { get => cyclomaticComplexity; set => cyclomaticComplexity = value; }
+        public SortedList<long, JsonCall> Tc_calls { get => tc_calls; set => tc_calls = value; }
+        public SortedList<long, JsonCall> Tc_calledBy { get => tc_calledBy; set => tc_calledBy = value; }
     }
 }
