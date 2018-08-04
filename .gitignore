@@ -336,3 +336,4 @@ ExtractIndirectCoupling/graph_info.txt
 ExtractIndirectCoupling/some_chains.txt
 ExtractIndirectCoupling/output/Ejemplo.json
 ExtractIndirectCoupling/output/graph_info.txt
+ExtractIndirectCoupling/output/roslyn.json

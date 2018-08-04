@@ -133,13 +133,17 @@ namespace ProjectParser
                 {
                     SyntaxNode classDec = FindClass(declaracionDeMetodoActual);
                     NamespaceDeclarationSyntax namespaceDec = FindNamespace(classDec);
-                    JsonMethod m = JsonMethod.GetMethod(
-                        declaracionDeMetodoActual.Identifier.ToString(),
-                        FindClassName(classDec),
-                        namespaceDec == null ? "" : namespaceDec.Name.ToString());
 
-                    output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-15} {4,-15} {5,-15}",
-                                                   m.Name, m.ClassName, m.NamespaceName, m.Id, m.ClassId, m.NamespaceId));
+                    if (classDec != null && namespaceDec != null)
+                    {
+                        JsonMethod m = JsonMethod.GetMethod(
+                            declaracionDeMetodoActual.Identifier.ToString(),
+                            FindClassName(classDec),
+                            namespaceDec.Name.ToString());
+
+                        output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-15} {4,-15} {5,-15}",
+                                                       m.Name, m.ClassName, m.NamespaceName, m.Id, m.ClassId, m.NamespaceId));
+                    }
                 }
 
                 //Obtengo todas las classes del modelo.
@@ -157,10 +161,13 @@ namespace ProjectParser
                         List<VariableDeclaratorSyntax> listaVariables = declaracion.DescendantNodes().OfType<VariableDeclaratorSyntax>().ToList();
                         foreach (VariableDeclaratorSyntax variable in listaVariables)
                         {
-                            JsonAttribute.GetAttribute(
+                            if (claseActual != null && namespaceDec != null)
+                            {
+                                JsonAttribute.GetAttribute(
                                 variable.Identifier.ToString(),
                                 claseActual.Identifier.ToString(),
                                 namespaceDec == null ? "" : namespaceDec.Name.ToString());
+                            }
                         }
                     }
                 }
@@ -184,7 +191,8 @@ namespace ProjectParser
                         if (symbol is IMethodSymbol)
                         {
                             IMethodSymbol iSymbol = symbol as IMethodSymbol;
-                            if (!iSymbol.MethodKind.ToString().Equals("ReducedExtension"))
+                            if (!iSymbol.MethodKind.ToString().Equals("ReducedExtension") &&
+                                !iSymbol.MethodKind.ToString().Equals("LocalFunction"))
                             {
                                 JsonMethod caller = JsonMethod.GetMethod(FindMethodName(methodDec),
                                     FindClassName(classDec), namespaceDec == null ? "" : namespaceDec.Name.ToString());
@@ -247,6 +255,7 @@ namespace ProjectParser
                 using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
                 using (JsonWriter writer = new JsonTextWriter(sw))
                 {
+                    serializer.Formatting = Formatting.Indented;
                     serializer.Serialize(writer, project);
                 }
             }
