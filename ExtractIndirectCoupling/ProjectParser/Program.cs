@@ -264,7 +264,7 @@ namespace ProjectParser
 
             FolderBrowserDialog salida = new FolderBrowserDialog();
             salida.Description = @"Output folder";
-            salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
+            salida.SelectedPath = @"C:\Users\Administrador\Documents\GitHub\avibanalysis\ExtractIndirectCoupling\output";
             //salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
             if (salida.ShowDialog() == DialogResult.OK)
             {
@@ -764,8 +764,8 @@ namespace ProjectParser
         private static Compilation CreateTestCompilation()//JsonClass para la creacion de los árboles de sintaxis
         {
             FolderBrowserDialog entrada = new FolderBrowserDialog();
-            //entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
-            entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
+            entrada.SelectedPath = @"C:\Users\Administrador\Documents\repos\roslyn";
+            //entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
             entrada.Description = @"Input folder";
             if (entrada.ShowDialog() == DialogResult.OK)
             {
