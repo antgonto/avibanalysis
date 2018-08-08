@@ -103,7 +103,7 @@ namespace ProjectParser
         [STAThread]
         private static void ExtractGraphFromAST(JsonProject project, Compilation myCompilation, string path)
         {
-
+            Console.WriteLine("Loading AST");
             Dictionary<string, JsonMethod> nodoNamespacesNeo4J = new Dictionary<string, JsonMethod>();
             // Send output to a file
             System.IO.StreamWriter output = new System.IO.StreamWriter(@"" + path + @"\graph_info.txt");
@@ -245,7 +245,7 @@ namespace ProjectParser
             if (salida.ShowDialog() == DialogResult.OK)
             {
                 ExtractGraphFromAST(project, myCompilation, salida.SelectedPath);
-
+                Console.WriteLine("Loading data into database");
                 connectNeo4J(project);
 
                 // Disabled until runing time issue is solved!
@@ -793,36 +793,55 @@ namespace ProjectParser
             System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\Steven\Desktop\queryNeo4J.txt");
 
             var driver = GraphDatabase.Driver("bolt://localhost", AuthTokens.Basic("neo4j", "123"));
-            int namespacesCount = 0, classesCount = 0, methodsCount = 0;
             var session = driver.Session();
             string query = "";
             query += "CREATE(project:Project {nameProject:" + "'" + project.Name + "'" + "}) \n";
+            //Se armar toda la estructura del proyecto en el Query.
             foreach (JsonNamespace namespaces in project.Namespaces)
             {
-                query += "CREATE (namespaces" + namespacesCount + ":Namespace {nameNamespaces:" + "'" + namespaces.Name + "'"
+                query += "CREATE (namespaces" + namespaces.Id + ":Namespace {nameNamespaces:" + "'" + namespaces.Name + "'"
                         + ", idLocal:" + "'" + namespaces.Id + "'})\n";
-                query += "CREATE (namespaces" + namespacesCount + ")-[:ParentOfWorkspace]->(project) \n";
+                query += "CREATE (namespaces" + namespaces.Id + ")-[:ParentOfWorkspace]->(project) \n";
                 foreach (JsonClass classes in namespaces.Classes)
                 {
                     
-                       query += "CREATE (class" + classesCount + ":Clase {nameClass:" + "'" + classes.Name + "'"
+                       query += "CREATE (class" + classes.Id + ":Clase {nameClass:" + "'" + classes.Name + "'"
                         + ", idLocal:" + "'" + namespaces.Id + "'})\n";
-                    query += "CREATE (class" + classesCount + ")-[:ParentOfClass]->("+ "namespaces" + namespacesCount+") \n";
+                    query += "CREATE (class" + classes.Id + ")-[:ParentOfClass]->("+ "namespaces" + namespaces.Id + ") \n";
                     foreach (JsonMethod method in classes.Methods)
                     {
-                        query += "CREATE (method" + methodsCount + ":Method {nameMethod:" + "'" + method.Name + "'" +
+                        query += "CREATE (method" + method.Id + ":Method {nameMethod:" + "'" + method.Name + "'" +
                             ", class:" + "'" + method.ClassName + "'" + "}) \n";
-                        query += "CREATE (method" + methodsCount + ")-[:ParentOfMethod]->(" + "class" + classesCount + ") \n";
+                        query += "CREATE (method" + method.Id + ")-[:ParentOfMethod]->(" + "class" + classes.Id + ") \n";
 
-                        methodsCount++;
                     }
-                    classesCount++;
                 }
-                namespacesCount++;
+            }
+            //Se arman las relaciones de callers
+            foreach (JsonNamespace namespaces in project.Namespaces)
+            {
+                foreach (JsonClass classes in namespaces.Classes)
+                {
+                    foreach (JsonMethod method in classes.Methods)
+                    {
+                        var listOfCalls = method.Calls.ToList();
+                        foreach (JsonCall call in listOfCalls)
+                        {
+                            query += "CREATE (method" + method.Id + ")-[:Call]->(" + "method" + call.Id + ") \n";
+                        }
+                        var listOfCalledBy = method.CalledBy.ToList();
+                        foreach (JsonCall call in listOfCalledBy)
+                        {
+                            query += "CREATE (method" + method.Id + ")-[:CalledBy]->(" + "method" + call.Id + ") \n";
+                        }
+
+                    }
+                }
             }
             session.Run(query);
             output.Write(query);
             output.Flush();
+            Console.WriteLine("Finish");
             Console.ReadLine();
 
         }
