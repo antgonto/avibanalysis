@@ -830,15 +830,15 @@ namespace ProjectParser
                             query += "CREATE (method" + method.Id + ")-[:Call]->(" + "method" + call.Id + ") \n";
                         }
                         var listOfCalledBy = method.CalledBy.ToList();
-                        foreach (JsonCall call in listOfCalledBy)
+                       /* foreach (JsonCall call in listOfCalledBy)
                         {
                             query += "CREATE (method" + method.Id + ")-[:CalledBy]->(" + "method" + call.Id + ") \n";
-                        }
+                        }*/
 
                     }
                 }
             }
-            session.Run(query);
+            var result = session.Run(query);
             output.Write(query);
             output.Flush();
             Console.WriteLine("Finish");
