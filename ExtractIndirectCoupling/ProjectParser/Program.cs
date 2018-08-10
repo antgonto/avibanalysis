@@ -240,13 +240,16 @@ namespace ProjectParser
 
             FolderBrowserDialog salida = new FolderBrowserDialog();
             salida.Description = @"Output folder";
-            //salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
-            salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
+            salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
+            //salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
             if (salida.ShowDialog() == DialogResult.OK)
             {
                 ExtractGraphFromAST(project, myCompilation, salida.SelectedPath);
                 Console.WriteLine("Loading data into database");
-                connectNeo4J(project);
+
+                SaveNeo4JGraph(project);
+
+                //connectNeo4J(project, salida.SelectedPath);
 
                 // Disabled until runing time issue is solved!
                 //JsonMethod.CountChainsUsingDFS(project);
@@ -736,8 +739,8 @@ namespace ProjectParser
         private static Compilation CreateTestCompilation()//JsonClass para la creacion de los árboles de sintaxis
         {
             FolderBrowserDialog entrada = new FolderBrowserDialog();
-            //entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
-            entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
+            entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
+            //entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
             entrada.Description = @"Input folder";
             if (entrada.ShowDialog() == DialogResult.OK)
             {
@@ -788,11 +791,150 @@ namespace ProjectParser
             }
             return null;
         }
-        private static void connectNeo4J(JsonProject project)
-        {
-            System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\Steven\Desktop\queryNeo4J.txt");
 
-            var driver = GraphDatabase.Driver("bolt://localhost", AuthTokens.Basic("neo4j", "123"));
+        private static void SaveNeo4JGraph(JsonProject project)
+        {
+            SaveGraphCSV(project);
+            UploadCSVtoNeo4J();
+
+            // queries utiles
+            //
+            // obtener los objetos en un namespace por nombre (namespace, clases y metodos)
+            //      match ((n {qualifiedname:'Microsoft.CodeAnalysis.CSharp.DesignerAttributes'})-->(c)) return n,c
+            // borrar todos los objetos
+            //      match(n) detach delete n
+        }
+
+        private static void UploadCSVtoNeo4J()
+        {
+            var driver = GraphDatabase.Driver("bolt://localhost:7687", AuthTokens.Basic("neo4j", "123"));
+            using (var session = driver.Session(AccessMode.Write))
+            {
+                // CANNOT USE --> USING PERIODIC COMMIT 500
+
+                session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///project.csv"" as f
+                                                        CREATE(:Project { id: f[0] })"));
+                session.WriteTransaction(tx => tx.Run(@"CREATE CONSTRAINT ON (p:Project) ASSERT p.id IS UNIQUE"));
+
+                session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///namespaces.csv"" as f
+                                                        MERGE (p:Project { id: f[3] })
+                                                        CREATE (n:Namespace { id: f[0], name: f[1], qualifiedname: f[2] })
+                                                        CREATE (p)-[:HAS_NAMESPACE]->(n)"));
+                session.WriteTransaction(tx => tx.Run(@"CREATE CONSTRAINT ON (n:Namespace) ASSERT n.id IS UNIQUE"));
+
+                session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///hierarchy.csv"" as f
+                                                        MERGE (n1:Namespace { id: f[0] })
+                                                        MERGE (n2:Namespace { id: f[1] })
+                                                        CREATE (n1)-[:CONTAINS_NAMESPACE]->(n2)"));
+
+                session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///classes.csv"" as f
+                                                        MERGE (p:Project { id: f[4] })
+                                                        MERGE (n:Namespace { id: f[3] })
+                                                        CREATE (c:Class { id: f[0], name: f[1], qualifiedname: f[2] })
+                                                        CREATE (p)-[:HAS_CLASS]->(c)
+                                                        CREATE (n)-[:CONTAINS_CLASS]->(c)"));
+                session.WriteTransaction(tx => tx.Run(@"CREATE CONSTRAINT ON (c:Class) ASSERT c.id IS UNIQUE"));
+
+                session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///methods.csv"" as f
+                                                        MERGE (p:Project { id: f[4] })
+                                                        MERGE (n:Namespace { id: f[3] })
+                                                        MERGE (c:Class { id: f[2] })
+                                                        CREATE (m:Method { id: f[0], name: f[1] })
+                                                        CREATE (p)-[:HAS_METHOD]->(m)
+                                                        CREATE (n)-[:CONTAINS_METHOD]->(m)
+                                                        CREATE (c)-[:OWNS_METHOD]->(m)"));
+                session.WriteTransaction(tx => tx.Run(@"CREATE CONSTRAINT ON (m:Method) ASSERT m.id IS UNIQUE"));
+
+                session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///calls.csv"" as f
+                                                        MERGE (m1:Method { id: f[0] })
+                                                        MERGE (m2:Method { id: f[1] })
+                                                        CREATE (m1)-[:CALLS]->(m2)"));
+
+                session.WriteTransaction(tx => tx.Run(@"DROP CONSTRAINT ON (p:Project) ASSERT p.id IS UNIQUE"));
+                session.WriteTransaction(tx => tx.Run(@"DROP CONSTRAINT ON (n:Namespace) ASSERT n.id IS UNIQUE"));
+                session.WriteTransaction(tx => tx.Run(@"DROP CONSTRAINT ON (c:Class) ASSERT c.id IS UNIQUE"));
+                session.WriteTransaction(tx => tx.Run(@"DROP CONSTRAINT ON (m:Method) ASSERT m.id IS UNIQUE"));
+                session.WriteTransaction(tx => tx.Run(@"MATCH (x) WHERE x:Project OR x:Namespace OR x:Class OR x:Method REMOVE x.id"));
+            }
+        }
+
+
+        private static void SaveGraphCSV(JsonProject project)
+        {
+            string import_path = Environment.ExpandEnvironmentVariables(@"%NEO4J_HOME%\import\");
+            System.IO.StreamWriter projectSW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"project.csv"), false);
+            System.IO.StreamWriter namespacesSW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"namespaces.csv"), false);
+            System.IO.StreamWriter hierarchySW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"hierarchy.csv"), false);
+            System.IO.StreamWriter classesSW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"classes.csv"), false);
+            System.IO.StreamWriter methodsSW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"methods.csv"), false);
+            System.IO.StreamWriter callsSW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"calls.csv"), false);
+
+            projectSW.WriteLine(String.Format(@"{0}", project.Name));
+            projectSW.Flush();
+            projectSW.Close();
+            projectSW.Dispose();
+
+            foreach (JsonNamespace ns in project.Namespaces)
+            {
+                namespacesSW.WriteLine(String.Format(@"{0}{1},{2},{3},{0}", project.Name, ns.Id, ns.Name, ns.Fullname));
+                if (ns.ParentId != -1)
+                {
+                    hierarchySW.WriteLine(String.Format(@"{0}{1},{0}{2}", project.Name, ns.ParentId, ns.Id));
+                }
+                SaveNamespacesCSV(project.Name, ns.ChildNamespaces, namespacesSW, hierarchySW);
+            }
+            namespacesSW.Flush();
+            namespacesSW.Close();
+            namespacesSW.Dispose();
+            hierarchySW.Flush();
+            hierarchySW.Close();
+            hierarchySW.Dispose();
+
+            foreach (KeyValuePair<string, JsonClass> entry in JsonClass.Classes)
+            {
+                JsonClass c = entry.Value;
+                classesSW.WriteLine(String.Format(@"{0}{1},{2},{3},{0}{4},{0}", project.Name, c.Id, c.Name, c.Fullname, c.NamespaceId));
+            }
+            classesSW.Flush();
+            classesSW.Close();
+            classesSW.Dispose();
+
+            foreach (KeyValuePair<string, JsonMethod> entry in JsonMethod.Methods)
+            {
+                JsonMethod m = entry.Value;
+                methodsSW.WriteLine(String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0}", project.Name, m.Id, m.Name, m.ClassId, m.NamespaceId));
+
+                foreach (JsonCall c in m.Calls)
+                {
+                    callsSW.WriteLine(String.Format(@"{0}{1},{0}{2}", project.Name, m.Id, c.Id));
+                }
+            }
+            methodsSW.Flush();
+            methodsSW.Close();
+            methodsSW.Dispose();
+            callsSW.Flush();
+            callsSW.Close();
+            callsSW.Dispose();
+        }
+
+        private static void SaveNamespacesCSV(string projectName, List<JsonNamespace> childNamespaces, System.IO.StreamWriter namespacesSW, System.IO.StreamWriter hierarchySW)
+        {
+            foreach (JsonNamespace ns in childNamespaces)
+            {
+                namespacesSW.WriteLine(String.Format(@"{0}{1},{2},{3},{0}", projectName, ns.Id, ns.Name, ns.Fullname));
+                if (ns.ParentId != -1)
+                {
+                    hierarchySW.WriteLine(String.Format(@"{0}{1},{0}{2}", projectName, ns.ParentId, ns.Id));
+                }
+                SaveNamespacesCSV(projectName, ns.ChildNamespaces, namespacesSW, hierarchySW);
+            }
+        }
+
+        private static void connectNeo4J(JsonProject project, string path)
+        {
+            System.IO.StreamWriter output = new System.IO.StreamWriter(path + @"\queryNeo4J.txt");
+
+            var driver = GraphDatabase.Driver("bolt://localhost:7687", AuthTokens.Basic("neo4j", "123"));
             var session = driver.Session();
             string query = "";
             query += "CREATE(project:Project {nameProject:" + "'" + project.Name + "'" + "}) \n";

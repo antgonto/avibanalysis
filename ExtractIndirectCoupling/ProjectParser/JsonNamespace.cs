@@ -15,14 +15,16 @@ namespace ProjectParser
         long id;
         string name;
         string fullname;
+        long parentid;
         List<JsonNamespace> childNamespaces = new List<JsonNamespace>();
         List<JsonClass> classes = new List<JsonClass>();
 
-        public JsonNamespace(long id, string name, string fullname)
+        public JsonNamespace(long id, string name, string fullname, long parentid)
         {
             this.Id = id;
             this.Name = name;
             this.fullname = fullname;
+            this.parentid = parentid;
         }
 
         public static JsonProject Project { get => project; set => project = value; }
@@ -32,6 +34,8 @@ namespace ProjectParser
         public string Name { get => name; set => name = value; }
         [JsonProperty]
         public string Fullname { get => fullname; set => fullname = value; }
+        [JsonProperty]
+        public long ParentId { get => parentid; set => parentid = value; }
         [JsonProperty("Namespaces")]
         internal List<JsonNamespace> ChildNamespaces { get => childNamespaces; set => childNamespaces = value; }
         [JsonProperty("Classes")]
@@ -43,34 +47,35 @@ namespace ProjectParser
 
             if (!namespaces.TryGetValue(name, out onamespace))
             {
-                onamespace = new JsonNamespace(JsonProject.Nextid++, name.Substring(name.LastIndexOf('.')+1), name);
-                namespaces.Add(name, onamespace);
-
                 // Add namespaces hierarchy to project
                 string[] namespaceParts = name.Split('.');
                 List<JsonNamespace> nslist = project.Namespaces;
+                List<JsonNamespace> childlist = nslist;
                 string nameprefix = "";
+                long parent = -1;
 
                 // Build/traverse namespaces hierarchy
-                for (int i = 0; i < namespaceParts.Length - 1; i++)
+                for (int i = 0; i < namespaceParts.Length; i++)
                 {
-                    JsonNamespace ns = new JsonNamespace(JsonProject.Nextid, namespaceParts[i], nameprefix + namespaceParts[i]);
-                    int idx = nslist.IndexOf(ns);
+                    JsonNamespace ns = new JsonNamespace(JsonProject.Nextid, namespaceParts[i], nameprefix + namespaceParts[i], parent);
+                    int idx = childlist.IndexOf(ns);
                     if (idx < 0)
                     {
                         JsonProject.Nextid++;
-                        nslist.Add(ns);
+                        childlist.Add(ns);
                     }
                     else
                     {
-                        ns = nslist[idx];
+                        ns = childlist[idx];
                     }
-                    nslist = ns.childNamespaces;
+                    onamespace = ns;
+                    childlist = ns.childNamespaces;
+                    parent = ns.Id;
                     nameprefix = nameprefix + namespaceParts[i] + ".";
                 }
 
                 // Add leaf namespace to project namespaces hierarchy
-                nslist.Add(onamespace);
+                namespaces.Add(name, onamespace);
             }
 
             return onamespace;
@@ -84,7 +89,7 @@ namespace ProjectParser
         public bool Equals(JsonNamespace other)
         {
             return other != null &&
-                   fullname == other.fullname;
+                   string.Equals(fullname,other.fullname);
         }
 
         public override int GetHashCode()

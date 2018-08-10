@@ -169,11 +169,12 @@ namespace ProjectParser
         [JsonProperty("Namespace")]
         public string NamespaceName { get => onamespace.Name; set => onamespace.Name = value; }
         [JsonProperty]
-        internal HashSet<JsonCall> Calls { get => calls; set => calls = value; }
+        public HashSet<JsonCall> Calls { get => calls; set => calls = value; }
         [JsonProperty]
         internal HashSet<JsonCall> CalledBy { get => calledBy; set => calledBy = value; }
         public JsonClass GetClass { get => oclass; set => oclass = value; }
         public JsonNamespace GetNamespace { get => onamespace; set => onamespace = value; }
         public bool DfsFlag { get => dfsFlag; set => dfsFlag = value; }
+        public static Dictionary<string, JsonMethod> Methods { get => methods; set => methods = value; }
     }
 }

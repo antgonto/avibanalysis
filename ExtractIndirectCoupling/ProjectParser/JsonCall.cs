@@ -57,11 +57,11 @@ namespace ProjectParser
         {
             return other != null &&
                    id == other.id &&
-                   name == other.name &&
+                   string.Equals(name, other.name) &&
                    classId == other.classId &&
-                   className == other.className &&
+                   string.Equals(className, other.className) &&
                    workspaceId == other.workspaceId &&
-                   workspaceName == other.workspaceName;
+                   string.Equals(workspaceName, other.workspaceName);
         }
 
         public override int GetHashCode()

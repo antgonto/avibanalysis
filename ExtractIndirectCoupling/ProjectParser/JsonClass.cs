@@ -25,6 +25,7 @@ namespace ProjectParser
             this.onamespace = onamespace;
         }
 
+        public static Dictionary<string, JsonClass> Classes { get => classes; set => classes = value; }
         [JsonProperty]
         public long Id { get => id; set => id = value; }
         [JsonProperty]

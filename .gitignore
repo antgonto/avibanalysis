@@ -337,3 +337,7 @@ ExtractIndirectCoupling/some_chains.txt
 ExtractIndirectCoupling/output/Ejemplo.json
 ExtractIndirectCoupling/output/graph_info.txt
 ExtractIndirectCoupling/output/roslyn.json
+ExtractIndirectCoupling/output/queryNeo4J.txt
+ExtractIndirectCoupling/output/neo4j.json
+ExtractIndirectCoupling/output/neo4j.json
+ExtractIndirectCoupling/output/neo4j.json
