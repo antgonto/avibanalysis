@@ -14,18 +14,18 @@ namespace ProjectParser
         string name;
         long classId;
         string className;
-        long workspaceId;
-        string workspaceName;
+        long namespaceId;
+        string namespaceName;
         JsonMethod method;
 
-        public JsonCall(long id, string name, long classId, string className, long workspaceId, string workspaceName, JsonMethod method)
+        public JsonCall(long id, string name, long classId, string className, long namespaceId, string namespaceName, JsonMethod method)
         {
             this.id = id;
             this.name = name;
             this.classId = classId;
             this.className = className;
-            this.workspaceId = workspaceId;
-            this.workspaceName = workspaceName;
+            this.namespaceId = namespaceId;
+            this.namespaceName = namespaceName;
             this.method = method;
         }
 
@@ -33,14 +33,18 @@ namespace ProjectParser
         public long Id { get => id; set => id = value; }
         [JsonProperty]
         public string Name { get => name; set => name = value; }
+        [JsonProperty]
+        public string Fullname { get => namespaceName + "." + className + "." + name; }
         [JsonProperty("ClassId")]
         public long ClassId { get => classId; set => classId = value; }
         [JsonProperty("Class")]
         public string ClassName { get => className; set => className = value; }
+        [JsonProperty]
+        public string FullClassname { get => namespaceName + "." + className; }
         [JsonProperty("NamespaceId")]
-        public long WorkspaceId { get => workspaceId; set => workspaceId = value; }
-        [JsonProperty("Namespace")]
-        public string WorkspaceName { get => workspaceName; set => workspaceName = value; }
+        public long NamespaceId { get => namespaceId; set => namespaceId = value; }
+        [JsonProperty("FullNamespace")]
+        public string FullNamespace { get => namespaceName; set => namespaceName = value; }
         public JsonMethod Metodo { get => method; set => method = value; }
 
         public object Clone()
@@ -60,8 +64,8 @@ namespace ProjectParser
                    string.Equals(name, other.name) &&
                    classId == other.classId &&
                    string.Equals(className, other.className) &&
-                   workspaceId == other.workspaceId &&
-                   string.Equals(workspaceName, other.workspaceName);
+                   namespaceId == other.namespaceId &&
+                   string.Equals(namespaceName, other.namespaceName);
         }
 
         public override int GetHashCode()
@@ -71,8 +75,8 @@ namespace ProjectParser
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(name);
             hashCode = hashCode * -1521134295 + classId.GetHashCode();
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(className);
-            hashCode = hashCode * -1521134295 + workspaceId.GetHashCode();
-            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(workspaceName);
+            hashCode = hashCode * -1521134295 + namespaceId.GetHashCode();
+            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(namespaceName);
             return hashCode;
         }
     }

@@ -205,15 +205,15 @@ namespace ProjectParser
 
                                 JsonMethod callee = JsonMethod.GetMethod(mname, cname, nname);
 
-                                JsonCall callerEntry = new JsonCall(caller.Id, caller.Name, caller.ClassId, caller.ClassName, caller.NamespaceId, caller.NamespaceName, caller);
-                                JsonCall calleeEntry = new JsonCall(callee.Id, callee.Name, callee.ClassId, callee.ClassName, callee.NamespaceId, callee.NamespaceName, callee);
+                                JsonCall callerEntry = new JsonCall(caller.Id, caller.Name, caller.ClassId, caller.ClassName, caller.NamespaceId, caller.FullNamespaceName, caller);
+                                JsonCall calleeEntry = new JsonCall(callee.Id, callee.Name, callee.ClassId, callee.ClassName, callee.NamespaceId, callee.FullNamespaceName, callee);
 
                                 if (!callee.CalledBy.Contains(callerEntry))
                                 {
                                     output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-150} {4,-150} {5,-150} {6,-15} {7,-15} {8,-15} {9,-15} {10,-15} {11,-15}",
                                                                    caller.Name, callee.Name,
                                                                    caller.ClassName, callee.ClassName,
-                                                                   caller.NamespaceName, callee.NamespaceName,
+                                                                   caller.FullNamespaceName, callee.FullNamespaceName,
                                                                    caller.Id, callee.Id,
                                                                    caller.ClassId, callee.ClassId,
                                                                    caller.NamespaceId, callee.NamespaceId));
@@ -247,7 +247,7 @@ namespace ProjectParser
                 ExtractGraphFromAST(project, myCompilation, salida.SelectedPath);
                 Console.WriteLine("Loading data into database");
 
-                SaveNeo4JGraph(project);
+                //SaveNeo4JGraph(project);
 
                 //connectNeo4J(project, salida.SelectedPath);
 
