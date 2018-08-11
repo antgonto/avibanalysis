@@ -45,7 +45,7 @@ namespace ProjectParser
         public long NamespaceId { get => namespaceId; set => namespaceId = value; }
         [JsonProperty("FullNamespace")]
         public string FullNamespace { get => namespaceName; set => namespaceName = value; }
-        public JsonMethod Metodo { get => method; set => method = value; }
+        public JsonMethod Method { get => method; set => method = value; }
 
         public object Clone()
         {

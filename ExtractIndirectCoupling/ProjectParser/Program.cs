@@ -252,7 +252,8 @@ namespace ProjectParser
                 //connectNeo4J(project, salida.SelectedPath);
 
                 // Disabled until runing time issue is solved!
-                //JsonMethod.CountChainsUsingDFS(project);
+                CollapseGraphSCC();
+                JsonMethod.CountChainsUsingDFS(project);
                 //JsonMethod.CollectChainsUsingDFS(project);
 
                 JsonSerializer serializer = new JsonSerializer();
@@ -792,6 +793,81 @@ namespace ProjectParser
             return null;
         }
 
+        private static void CollapseGraphSCC()
+        {
+            foreach (KeyValuePair<string, JsonMethod> entry in JsonMethod.Methods)
+            {
+                JsonMethod n = entry.Value;
+                if (n.Visited == false)
+                {
+                    GabowDFS(n);
+                }
+            }
+        }
+
+        private static void GabowDFS(JsonMethod n)
+        {
+            Stack<JsonMethod> P = JsonMethod.P;
+            Stack<JsonMethod> R = JsonMethod.R;
+
+            n.Visited = true;
+            n.Pre = JsonMethod.Prev++;
+
+            P.Push(n);
+            R.Push(n);
+
+            foreach (JsonCall n_m in n.Calls)
+            {
+                JsonMethod m = n_m.Method;
+
+                if (m.Visited == false)
+                {
+                    GabowDFS(m);
+                }
+                else if (m.SccId == -1)
+                {
+                    while (R.Count > 0 && R.Peek().Pre > m.Pre)
+                    {
+                        R.Pop();
+                    }
+                }
+            }
+
+            if (R.Count > 0 && R.Peek().Id == n.Id)
+            {
+                R.Pop();
+
+                if (P.Count > 0 && P.Peek().Id != n.Id)
+                {
+                    JsonMethod o, scc;
+
+                    scc = new JsonMethod(JsonProject.Nextid, "SCC" + JsonProject.Nextid++);
+                    JsonMethod.SccList.Add(scc);
+
+                    do
+                    {
+                        o = P.Pop();
+                        o.SccId = scc.Id;
+                        o.Scc = scc;
+                        o.IsCollapsed = true;
+
+                        scc.SccId = scc.Id;
+                        scc.SccMethods.Add(o);
+                        scc.Calls.UnionWith(o.Calls);
+                        scc.CalledBy.UnionWith(o.CalledBy);
+                        scc.IsMethod = false;
+                        scc.IsScc = true;
+
+                    } while (P.Count > 0 && o.Id != n.Id);
+
+                    scc.Calls.RemoveWhere(c => c.Method.SccId == scc.SccId);
+                    scc.CalledBy.RemoveWhere(c => c.Method.SccId == scc.SccId);
+                }
+
+                JsonMethod.Idx++;
+            }
+        }
+
         private static void SaveNeo4JGraph(JsonProject project)
         {
             SaveGraphCSV(project);
@@ -803,6 +879,9 @@ namespace ProjectParser
             //      match ((n {qualifiedname:'Microsoft.CodeAnalysis.CSharp.DesignerAttributes'})-->(c)) return n,c
             // borrar todos los objetos
             //      match(n) detach delete n
+            //
+            // match (m:Method)
+            // create(s: Scc { scc: m.scc})-[:COLLAPSES]->(m)
         }
 
         private static void UploadCSVtoNeo4J()
@@ -854,7 +933,7 @@ namespace ProjectParser
                 session.WriteTransaction(tx => tx.Run(@"DROP CONSTRAINT ON (n:Namespace) ASSERT n.id IS UNIQUE"));
                 session.WriteTransaction(tx => tx.Run(@"DROP CONSTRAINT ON (c:Class) ASSERT c.id IS UNIQUE"));
                 session.WriteTransaction(tx => tx.Run(@"DROP CONSTRAINT ON (m:Method) ASSERT m.id IS UNIQUE"));
-                session.WriteTransaction(tx => tx.Run(@"MATCH (x) WHERE x:Project OR x:Namespace OR x:Class OR x:Method REMOVE x.id"));
+                session.WriteTransaction(tx => tx.Run(@"MATCH (x) WHERE x:Namespace OR x:Class OR x:Method REMOVE x.id"));
             }
         }
 

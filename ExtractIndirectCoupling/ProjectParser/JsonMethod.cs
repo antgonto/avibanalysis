@@ -12,13 +12,29 @@ namespace ProjectParser
     class JsonMethod
     {
         long id;
+        long sccId = -1;
+        JsonMethod scc = null;
+        bool isMethod = true;
+        bool isScc = false;
+        bool isCollapsed = false;
         string name;
         string fullname;
         JsonClass oclass;
         JsonNamespace onamespace;
-        static Dictionary<string, JsonMethod> methods = new Dictionary<string, JsonMethod>();
+        List<JsonMethod> sccMethods = new List<JsonMethod>();
         HashSet<JsonCall> calls = new HashSet<JsonCall>();
         HashSet<JsonCall> calledBy = new HashSet<JsonCall>();
+
+        static Dictionary<string, JsonMethod> methods = new Dictionary<string, JsonMethod>();
+        static List<JsonMethod> sccList = new List<JsonMethod>();
+
+        // Gabow's Algorithm
+        bool visited = false;
+        long pre;
+        static long prev = 0;
+        static long idx = 0;
+        static Stack<JsonMethod> p = new Stack<JsonMethod>();
+        static Stack<JsonMethod> r = new Stack<JsonMethod>();
 
         // Send output to a file
         //static System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\some_chains.txt");
@@ -26,6 +42,14 @@ namespace ProjectParser
 
         bool dfsFlag = false;
 
+        public JsonMethod(long id, string name)
+        {
+            this.id = id;
+            this.name = name;
+            this.fullname = name;
+            this.oclass = null;
+            this.onamespace = null;
+        }
 
         public JsonMethod(long id, string name, JsonClass clase, JsonNamespace @namespace)
         {
@@ -81,6 +105,10 @@ namespace ProjectParser
 
         static void CountDFS(JsonMethod m, ulong depth, ref ulong avgdepth, ref ulong count, JsonProject project)
         {
+            if (m.IsCollapsed)
+            {
+                m = m.Scc;
+            }
             m.DfsFlag = true;
             if (m.Calls.Count == 0)
             {
@@ -94,9 +122,9 @@ namespace ProjectParser
             {
                 foreach (JsonCall c in m.Calls)
                 {
-                    if (c.Metodo.DfsFlag == false)
+                    if (c.Method.DfsFlag == false)
                     {
-                        CountDFS(c.Metodo, depth+1, ref avgdepth, ref count, project);
+                        CountDFS(c.Method, depth+1, ref avgdepth, ref count, project);
                     }
                 }
             }
@@ -148,9 +176,9 @@ namespace ProjectParser
             {
                 foreach (JsonCall c in m.Calls)
                 {
-                    if (c.Metodo.DfsFlag == false)
+                    if (c.Method.DfsFlag == false)
                     {
-                        CollectDFS(c.Metodo, list, project);
+                        CollectDFS(c.Method, list, project);
                     }
                 }
             }
@@ -184,5 +212,20 @@ namespace ProjectParser
         public JsonNamespace GetNamespace { get => onamespace; set => onamespace = value; }
         public bool DfsFlag { get => dfsFlag; set => dfsFlag = value; }
         public static Dictionary<string, JsonMethod> Methods { get => methods; set => methods = value; }
+
+        // For Gabo's Algorithm
+        public bool Visited { get => visited; set => visited = value; }
+        public long Pre { get => pre; set => pre = value; }
+        public static long Prev { get => prev; set => prev = value; }
+        public static long Idx { get => idx; set => idx = value; }
+        internal static Stack<JsonMethod> P { get => p; set => p = value; }
+        internal static Stack<JsonMethod> R { get => r; set => r = value; }
+        public long SccId { get => sccId; set => sccId = value; }
+        public JsonMethod Scc { get => scc; set => scc = value; }
+        public bool IsMethod { get => isMethod; set => isMethod = value; }
+        public bool IsScc { get => isScc; set => isScc = value; }
+        public bool IsCollapsed { get => isCollapsed; set => isCollapsed = value; }
+        public List<JsonMethod> SccMethods { get => sccMethods; set => sccMethods = value; }
+        public static List<JsonMethod> SccList { get => sccList; set => sccList = value; }
     }
 }
