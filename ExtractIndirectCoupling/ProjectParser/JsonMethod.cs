@@ -36,6 +36,11 @@ namespace ProjectParser
         static Stack<JsonMethod> p = new Stack<JsonMethod>();
         static Stack<JsonMethod> r = new Stack<JsonMethod>();
 
+        int amountLines;
+        int constant;
+        int cyclomaticComplexity;
+
+
         // Send output to a file
         //static System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\some_chains.txt");
         //static int nprint = 10000;
@@ -51,23 +56,26 @@ namespace ProjectParser
             this.onamespace = null;
         }
 
-        public JsonMethod(long id, string name, JsonClass clase, JsonNamespace @namespace)
+        public JsonMethod(long id, string name, JsonClass clase, JsonNamespace @namespace,int pAmountLines, int pConstant, int pCyclomaticComplexity)
         {
             this.id = id;
             this.name = name;
             this.fullname = clase.Fullname + "." + name;
             this.oclass = clase;
             this.onamespace = @namespace;
+            this.AmountLines = pAmountLines;
+            this.Constant = pConstant;
+            this.CyclomaticComplexity = pCyclomaticComplexity;
         }
 
-        public static JsonMethod GetMethod(string name, string oclass, string onamespace)
+        public static JsonMethod GetMethod(string name, string oclass, string onamespace, int pAmountLines, int pConstant, int pCyclomaticComplexity)
         {
             JsonMethod method;
 
             if (!methods.TryGetValue(onamespace + "." + oclass + "." + name, out method))
             {
                 JsonClass c = ProjectParser.JsonClass.GetClass(oclass, onamespace);
-                method = new JsonMethod(JsonProject.Nextid++, name, c, JsonNamespace.GetNamespace(onamespace));
+                method = new JsonMethod(JsonProject.Nextid++, name, c, JsonNamespace.GetNamespace(onamespace),pAmountLines,pConstant,pCyclomaticComplexity);
                 methods.Add(onamespace + "." + oclass + "." + name, method);
                 c.Methods.Add(method);
             }
@@ -227,5 +235,9 @@ namespace ProjectParser
         public bool IsCollapsed { get => isCollapsed; set => isCollapsed = value; }
         public List<JsonMethod> SccMethods { get => sccMethods; set => sccMethods = value; }
         public static List<JsonMethod> SccList { get => sccList; set => sccList = value; }
+
+        public int AmountLines { get => amountLines; set => amountLines = value; }
+        public int Constant { get => constant; set => constant = value; }
+        public int CyclomaticComplexity { get => cyclomaticComplexity; set => cyclomaticComplexity = value; }
     }
 }

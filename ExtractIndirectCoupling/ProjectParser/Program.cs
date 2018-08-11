@@ -133,7 +133,24 @@ namespace ProjectParser
                 //Recorro las declaraciones para obtener los metodos.
                 foreach (MethodDeclarationSyntax declaracionDeMetodoActual in declarationSyntax)
                 {
-                    SyntaxNode classDec = FindClass(declaracionDeMetodoActual);
+                    //Calculations of each method 
+                    int start = 0, end = 0, lines = 0, cyclomatic = 0;
+                    Console.WriteLine(declaracionDeMetodoActual.Identifier.ToString());
+
+                    cyclomatic = calcularComplejidadCiclomatica(declaracionDeMetodoActual);
+                    if (declaracionDeMetodoActual.Body != null)
+                    {
+                        start = declaracionDeMetodoActual.Body.SyntaxTree.GetLineSpan(declaracionDeMetodoActual.FullSpan).StartLinePosition.Line;
+                        end = declaracionDeMetodoActual.Body.SyntaxTree.GetLineSpan(declaracionDeMetodoActual.FullSpan).EndLinePosition.Line;
+                        lines = end - start;
+                    }
+                    else
+                    {
+                        lines = 1;
+                        cyclomatic = 1;
+
+                    }
+                        SyntaxNode classDec = FindClass(declaracionDeMetodoActual);
                     NamespaceDeclarationSyntax namespaceDec = FindNamespace(classDec);
 
                     if (classDec != null && namespaceDec != null)
@@ -141,7 +158,10 @@ namespace ProjectParser
                         JsonMethod m = JsonMethod.GetMethod(
                             declaracionDeMetodoActual.Identifier.ToString(),
                             FindClassName(classDec),
-                            namespaceDec.Name.ToString());
+                            namespaceDec.Name.ToString(),
+                            lines,
+                            1,
+                            cyclomatic);
 
                         output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-15} {4,-15} {5,-15}",
                                                        m.Name, m.ClassName, m.NamespaceName, m.Id, m.ClassId, m.NamespaceId));
@@ -196,14 +216,18 @@ namespace ProjectParser
                             if (!iSymbol.MethodKind.ToString().Equals("ReducedExtension") &&
                                 !iSymbol.MethodKind.ToString().Equals("LocalFunction"))
                             {
+                                //-1 because is only search
                                 JsonMethod caller = JsonMethod.GetMethod(FindMethodName(methodDec),
-                                    FindClassName(classDec), namespaceDec == null ? "" : namespaceDec.Name.ToString());
+                                    FindClassName(classDec), namespaceDec == null ? "" : namespaceDec.Name.ToString(),
+                                    -1,
+                                    -1,
+                                    -1);
 
                                 string mname = iSymbol.Name;
                                 string cname = iSymbol.ContainingSymbol.Name;
                                 string nname = iSymbol.ContainingNamespace.ToString();
-
-                                JsonMethod callee = JsonMethod.GetMethod(mname, cname, nname);
+                                //-1 because is only search
+                                JsonMethod callee = JsonMethod.GetMethod(mname, cname, nname,-1,-1,-1);
 
                                 JsonCall callerEntry = new JsonCall(caller.Id, caller.Name, caller.ClassId, caller.ClassName, caller.NamespaceId, caller.FullNamespaceName, caller);
                                 JsonCall calleeEntry = new JsonCall(callee.Id, callee.Name, callee.ClassId, callee.ClassName, callee.NamespaceId, callee.FullNamespaceName, callee);
@@ -740,8 +764,8 @@ namespace ProjectParser
         private static Compilation CreateTestCompilation()//JsonClass para la creacion de los árboles de sintaxis
         {
             FolderBrowserDialog entrada = new FolderBrowserDialog();
-            entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
-            //entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
+            //entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
+            entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
             entrada.Description = @"Input folder";
             if (entrada.ShowDialog() == DialogResult.OK)
             {
@@ -918,7 +942,7 @@ namespace ProjectParser
                                                         MERGE (p:Project { id: f[4] })
                                                         MERGE (n:Namespace { id: f[3] })
                                                         MERGE (c:Class { id: f[2] })
-                                                        CREATE (m:Method { id: f[0], name: f[1] })
+                                                        CREATE (m:Method { id: f[0], name: f[1], lines: f[5], cyclomatic: f[6], constant: f[7] })
                                                         CREATE (p)-[:HAS_METHOD]->(m)
                                                         CREATE (n)-[:CONTAINS_METHOD]->(m)
                                                         CREATE (c)-[:OWNS_METHOD]->(m)"));
@@ -981,7 +1005,8 @@ namespace ProjectParser
             foreach (KeyValuePair<string, JsonMethod> entry in JsonMethod.Methods)
             {
                 JsonMethod m = entry.Value;
-                methodsSW.WriteLine(String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0}", project.Name, m.Id, m.Name, m.ClassId, m.NamespaceId));
+                String x = String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0},{5},{6},{7}", project.Name, m.Id, m.Name, m.ClassId, m.NamespaceId, m.AmountLines, m.CyclomaticComplexity, m.Constant);
+                methodsSW.WriteLine(String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0},{5},{6},{7}", project.Name, m.Id, m.Name, m.ClassId, m.NamespaceId, m.AmountLines, m.CyclomaticComplexity, m.Constant));
 
                 foreach (JsonCall c in m.Calls)
                 {
