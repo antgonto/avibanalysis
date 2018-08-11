@@ -36,6 +36,8 @@ namespace ProjectParser
         public long NamespaceId { get => onamespace.Id; set => onamespace.Id = value; }
         [JsonProperty("Namespace")]
         public string NamespaceName { get => onamespace.Name; set => onamespace.Name = value; }
+        [JsonProperty("Fullnamespace")]
+        public string FullNamespaceName { get => onamespace.Fullname; set => onamespace.Fullname = value; }
         //[JsonProperty("Attributes")]
         public List<JsonAttribute> Attributes { get => attributes; set => attributes = value; }
         [JsonProperty("Methods")]

@@ -13,6 +13,7 @@ namespace ProjectParser
     {
         long id;
         string name;
+        string fullname;
         JsonClass oclass;
         JsonNamespace onamespace;
         static Dictionary<string, JsonMethod> methods = new Dictionary<string, JsonMethod>();
@@ -34,6 +35,7 @@ namespace ProjectParser
         {
             this.id = id;
             this.name = name;
+            this.fullname = clase.Fullname + "." + name;
             this.oclass = clase;
             this.onamespace = @namespace;
             this.AmountLines = pAmountLines;
@@ -167,14 +169,20 @@ namespace ProjectParser
         public long Id { get => id; set => id = value; }
         [JsonProperty]
         public string Name { get => name; set => name = value; }
+        [JsonProperty]
+        public string Fullname { get => fullname; set => fullname = value; }
         [JsonProperty("ClassId")]
         public long ClassId { get => oclass.Id; set => oclass.Id = value; }
         [JsonProperty("Class")]
         public string ClassName { get => oclass.Name; set => oclass.Name = value; }
+        [JsonProperty("FullClassname")]
+        public string FullClassname { get => oclass.Fullname; set => oclass.Fullname = value; }
         [JsonProperty("NamespaceId")]
         public long NamespaceId { get => onamespace.Id; set => onamespace.Id = value; }
         [JsonProperty("Namespace")]
         public string NamespaceName { get => onamespace.Name; set => onamespace.Name = value; }
+        [JsonProperty("FullNamespace")]
+        public string FullNamespaceName { get => onamespace.Fullname; set => onamespace.Fullname = value; }
         [JsonProperty]
         public HashSet<JsonCall> Calls { get => calls; set => calls = value; }
         [JsonProperty]
