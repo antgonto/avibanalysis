@@ -135,7 +135,7 @@ namespace ProjectParser
                 {
                     //Calculations of each method 
                     int start = 0, end = 0, lines = 0, cyclomatic = 0;
-                    Console.WriteLine(declaracionDeMetodoActual.Identifier.ToString());
+                    //output.WriteLine(declaracionDeMetodoActual.Identifier.ToString());
 
                     cyclomatic = calcularComplejidadCiclomatica(declaracionDeMetodoActual);
                     if (declaracionDeMetodoActual.Body != null)
@@ -277,6 +277,7 @@ namespace ProjectParser
 
                 // Disabled until runing time issue is solved!
                 CollapseGraphSCC();
+                Console.Read();
                 JsonMethod.CountChainsUsingDFS(project);
                 //JsonMethod.CollectChainsUsingDFS(project);
 
@@ -617,155 +618,159 @@ namespace ProjectParser
             metrics.calculatePairs();
 
             FolderBrowserDialog salida = new FolderBrowserDialog();
-            System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\Steven\Documents\GitHub\AnalizadorDFSMaster\AnalizadorDFS\output.txt");
+            System.IO.StreamWriter output;
+            //System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\Steven\Documents\GitHub\AnalizadorDFSMaster\AnalizadorDFS\output.txt");
+            salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
+
             if (salida.ShowDialog() == DialogResult.OK)
             {
                 output = new System.IO.StreamWriter(@"" + salida.SelectedPath + "\\output.txt");
 
-            }
 
-            // Send output to a file
-            //System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\ExtractIndirectCoupling\output.txt");
-            //System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\AnalizadorDFS\AnalizadorDFS\output.txt");
+                // Send output to a file
+                //System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\ExtractIndirectCoupling\output.txt");
+                //System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\AnalizadorDFS\AnalizadorDFS\output.txt");
 
-            //grafo.imprimirCadenas(output);
+                grafo.imprimirCadenas(output);
 
-            /*foreach (Metodo invocacion in listaMetodos)
-            {
-                if (invocacion.EsLlamador || invocacion.EsLlamado)
+                /*foreach (Metodo invocacion in listaMetodos)
                 {
-                    output.WriteLine("JsonClass: " + invocacion.JsonClass);
-                    output.WriteLine("Tipo: " + invocacion.Tipo);
-                    output.WriteLine("Método/Atributo: " + invocacion.Nombre);
-                    output.WriteLine("CYCLO: " + invocacion.ComplejidadCiclomatica);
-                    output.WriteLine("LOC:   " + invocacion.CantidadLineasMetodo);
+                    if (invocacion.EsLlamador || invocacion.EsLlamado)
+                    {
+                        output.WriteLine("JsonClass: " + invocacion.JsonClass);
+                        output.WriteLine("Tipo: " + invocacion.Tipo);
+                        output.WriteLine("Método/Atributo: " + invocacion.Nombre);
+                        output.WriteLine("CYCLO: " + invocacion.ComplejidadCiclomatica);
+                        output.WriteLine("LOC:   " + invocacion.CantidadLineasMetodo);
 
-                    output.WriteLine("...........  EXPORTS  ...............................");
-                    output.WriteLine("             Loc  Cyclo Const");
-                    output.WriteLine(String.Format("ExportSum: {0,5}  {1,5} {1,5}", invocacion.ExportLOCSum, invocacion.ExportCLYCLOSum, invocacion.ExportConstantSum));
-                    output.WriteLine(String.Format("ExportMin: {0,5}  {1,5} {1,5}", invocacion.ExportLOCMin, invocacion.ExportCLYCLOMin, invocacion.ExportConstantMin));
-                    output.WriteLine(String.Format("ExportMax: {0,5}  {1,5} {1,5}", invocacion.ExportLOCMax, invocacion.ExportCLYCLOMax, invocacion.ExportConstantMax));
-                    output.WriteLine(String.Format("ExportAVG: {0,5:N2}  {1,5:N2} {1,5:N2}", invocacion.ExportLOCAvg, invocacion.ExportCLYCLOAvg, invocacion.ExportConstantAvg));
+                        output.WriteLine("...........  EXPORTS  ...............................");
+                        output.WriteLine("             Loc  Cyclo Const");
+                        output.WriteLine(String.Format("ExportSum: {0,5}  {1,5} {1,5}", invocacion.ExportLOCSum, invocacion.ExportCLYCLOSum, invocacion.ExportConstantSum));
+                        output.WriteLine(String.Format("ExportMin: {0,5}  {1,5} {1,5}", invocacion.ExportLOCMin, invocacion.ExportCLYCLOMin, invocacion.ExportConstantMin));
+                        output.WriteLine(String.Format("ExportMax: {0,5}  {1,5} {1,5}", invocacion.ExportLOCMax, invocacion.ExportCLYCLOMax, invocacion.ExportConstantMax));
+                        output.WriteLine(String.Format("ExportAVG: {0,5:N2}  {1,5:N2} {1,5:N2}", invocacion.ExportLOCAvg, invocacion.ExportCLYCLOAvg, invocacion.ExportConstantAvg));
 
-                    output.WriteLine("...........  IMPORTS  ...............................");
-                    output.WriteLine("             Loc  Cyclo Const");
-                    output.WriteLine(String.Format("ImportSum: {0,5}  {1,5} {1,5}", invocacion.ImportLOCSum, invocacion.ImportCLYCLOSum, invocacion.ImportConstantSum));
-                    output.WriteLine(String.Format("ImportMin: {0,5}  {1,5} {1,5}", invocacion.ImportLOCMin, invocacion.ImportCLYCLOMin, invocacion.ImportConstantMin));
-                    output.WriteLine(String.Format("ImportMax: {0,5}  {1,5} {1,5}", invocacion.ImportLOCMax, invocacion.ImportCLYCLOMax, invocacion.ImportConstantMax));
-                    output.WriteLine(String.Format("ImportAVG: {0,5:N2}  {1,5:N2} {1,5:N2}", invocacion.ImportLOCAvg, invocacion.ImportCLYCLOAvg, invocacion.ImportConstantAvg));
-                    output.WriteLine("******************************************************************");
-                }
+                        output.WriteLine("...........  IMPORTS  ...............................");
+                        output.WriteLine("             Loc  Cyclo Const");
+                        output.WriteLine(String.Format("ImportSum: {0,5}  {1,5} {1,5}", invocacion.ImportLOCSum, invocacion.ImportCLYCLOSum, invocacion.ImportConstantSum));
+                        output.WriteLine(String.Format("ImportMin: {0,5}  {1,5} {1,5}", invocacion.ImportLOCMin, invocacion.ImportCLYCLOMin, invocacion.ImportConstantMin));
+                        output.WriteLine(String.Format("ImportMax: {0,5}  {1,5} {1,5}", invocacion.ImportLOCMax, invocacion.ImportCLYCLOMax, invocacion.ImportConstantMax));
+                        output.WriteLine(String.Format("ImportAVG: {0,5:N2}  {1,5:N2} {1,5:N2}", invocacion.ImportLOCAvg, invocacion.ImportCLYCLOAvg, invocacion.ImportConstantAvg));
+                        output.WriteLine("******************************************************************");
+                    }
 
-            }*/
+                }*/
 
-            // sort methods in descending order by their Maximum Export Cyclomatic Complexity
-            listaMetodos.Sort(delegate (Metodo m_i, Metodo m_j)
-            {
-                if (!m_i.EsLlamado && !m_i.EsLlamador && !m_j.EsLlamado && !m_j.EsLlamador) return 0; // both are not part of any chain
+                // sort methods in descending order by their Maximum Export Cyclomatic Complexity
+                listaMetodos.Sort(delegate (Metodo m_i, Metodo m_j)
+                {
+                    if (!m_i.EsLlamado && !m_i.EsLlamador && !m_j.EsLlamado && !m_j.EsLlamador) return 0; // both are not part of any chain
                 else if (!m_i.EsLlamado && !m_i.EsLlamador) return 1; // isolated methods are less
                 else if (!m_j.EsLlamado && !m_j.EsLlamador) return -1; // same as before
                 else return m_j.ExportCLYCLOMax.CompareTo(m_i.ExportCLYCLOMax);
-            });
+                });
 
-            output.WriteLine("\n\n*");
-            output.WriteLine("*");
-            output.WriteLine("* 10 con mayor Rigidez Cyclomática Máxima (EXPORT)");
-            output.WriteLine("*");
-            output.WriteLine(String.Format("* CXmin={0} CXmax={1}", metrics.ExportNormal.CycloMaxMin, metrics.ExportNormal.CycloMaxMax));
-            output.WriteLine("");
-            output.WriteLine(String.Format("{0,-6} {1,10:N2} {2,10} {3,10} {4,10} {5,10:N2} {6,10:N2} {7,10:N2} {8,10} {9,10} {10,10} {11,10} {12,10} {13,10}",
-                                           "Método", "*NCX", "LS", "CS", "KS", "LA", "CA", "KA", "LI", "CI", "KI", "LX", "*CX", "KX"));
-            for (int i = 0; i < 10; i++)
-            {
-                Metodo invocacion = listaMetodos[i];
-                if (invocacion.EsLlamador || invocacion.EsLlamado)
+                output.WriteLine("\n\n*");
+                output.WriteLine("*");
+                output.WriteLine("* 10 con mayor Rigidez Cyclomática Máxima (EXPORT)");
+                output.WriteLine("*");
+                output.WriteLine(String.Format("* CXmin={0} CXmax={1}", metrics.ExportNormal.CycloMaxMin, metrics.ExportNormal.CycloMaxMax));
+                output.WriteLine("");
+                output.WriteLine(String.Format("{0,-6} {1,10:N2} {2,10} {3,10} {4,10} {5,10:N2} {6,10:N2} {7,10:N2} {8,10} {9,10} {10,10} {11,10} {12,10} {13,10}",
+                                               "Método", "*NCX", "LS", "CS", "KS", "LA", "CA", "KA", "LI", "CI", "KI", "LX", "*CX", "KX"));
+                for (int i = 0; i < 10; i++)
                 {
-                    output.WriteLine(String.Format("{0,-6} {1,10:N2} {2,10} {3,10} {4,10} {5,10:N2} {6,10:N2} {7,10:N2} {8,10} {9,10} {10,10} {11,10} {12,10} {13,10}",
-                                    i + 2, //invocacion.JsonClass + "."+ invocacion.Nombre, 
-                                    metrics.ExportNormal.NormalizeCycloMax(invocacion.ExportCLYCLOMax),
-                                    invocacion.ExportLOCSum, invocacion.ExportCLYCLOSum, invocacion.ExportConstantSum,
-                                    invocacion.ExportLOCAvg, invocacion.ExportCLYCLOAvg, invocacion.ExportConstantAvg,
-                                    invocacion.ExportLOCMin, invocacion.ExportCLYCLOMin, invocacion.ExportConstantMin,
-                                    invocacion.ExportLOCMax, invocacion.ExportCLYCLOMax, invocacion.ExportConstantMax));
+                    Metodo invocacion = listaMetodos[i];
+                    if (invocacion.EsLlamador || invocacion.EsLlamado)
+                    {
+                        output.WriteLine(String.Format("{0,-6} {1,10:N2} {2,10} {3,10} {4,10} {5,10:N2} {6,10:N2} {7,10:N2} {8,10} {9,10} {10,10} {11,10} {12,10} {13,10}",
+                                        i + 2, //invocacion.JsonClass + "."+ invocacion.Nombre, 
+                                        metrics.ExportNormal.NormalizeCycloMax(invocacion.ExportCLYCLOMax),
+                                        invocacion.ExportLOCSum, invocacion.ExportCLYCLOSum, invocacion.ExportConstantSum,
+                                        invocacion.ExportLOCAvg, invocacion.ExportCLYCLOAvg, invocacion.ExportConstantAvg,
+                                        invocacion.ExportLOCMin, invocacion.ExportCLYCLOMin, invocacion.ExportConstantMin,
+                                        invocacion.ExportLOCMax, invocacion.ExportCLYCLOMax, invocacion.ExportConstantMax));
+                    }
                 }
-            }
 
-            // sort methods in descending order by their Total Import Cyclomatic Complexity
-            listaMetodos.Sort(delegate (Metodo m_i, Metodo m_j)
-            {
-                if (!m_i.EsLlamado && !m_i.EsLlamador && !m_j.EsLlamado && !m_j.EsLlamador) return 0; // both are not part of any chain
+                // sort methods in descending order by their Total Import Cyclomatic Complexity
+                listaMetodos.Sort(delegate (Metodo m_i, Metodo m_j)
+                {
+                    if (!m_i.EsLlamado && !m_i.EsLlamador && !m_j.EsLlamado && !m_j.EsLlamador) return 0; // both are not part of any chain
                 else if (!m_i.EsLlamado && !m_i.EsLlamador) return 1; // isolated methods are less
                 else if (!m_j.EsLlamado && !m_j.EsLlamador) return -1; // same as before
                 else return m_j.ImportCLYCLOMax.CompareTo(m_i.ImportCLYCLOMax);
-            });
+                });
 
-            output.WriteLine("\n\n*");
-            output.WriteLine("*");
-            output.WriteLine("* 10 con mayor Fragilidad Cyclomática Máxima (IMPORT)");
-            output.WriteLine("*");
-            output.WriteLine(String.Format("* CXmin={0} CXmax={1}", metrics.ImportNormal.CycloMaxMin, metrics.ImportNormal.CycloMaxMax));
-            output.WriteLine("");
-            output.WriteLine(String.Format("{0,-6} {1,10:N2} {2,10} {3,10} {4,10} {5,10:N2} {6,10:N2} {7,10:N2} {8,10} {9,10} {10,10} {11,10} {12,10} {13,10}",
-                                           "Método", "*NCX", "LS", "CS", "KS", "LA", "CA", "KA", "LI", "CI", "KI", "LX", "*CX", "KX"));
-            for (int i = 0; i < 10; i++)
-            {
-                Metodo invocacion = listaMetodos[i];
-                if (invocacion.EsLlamador || invocacion.EsLlamado)
+                output.WriteLine("\n\n*");
+                output.WriteLine("*");
+                output.WriteLine("* 10 con mayor Fragilidad Cyclomática Máxima (IMPORT)");
+                output.WriteLine("*");
+                output.WriteLine(String.Format("* CXmin={0} CXmax={1}", metrics.ImportNormal.CycloMaxMin, metrics.ImportNormal.CycloMaxMax));
+                output.WriteLine("");
+                output.WriteLine(String.Format("{0,-6} {1,10:N2} {2,10} {3,10} {4,10} {5,10:N2} {6,10:N2} {7,10:N2} {8,10} {9,10} {10,10} {11,10} {12,10} {13,10}",
+                                               "Método", "*NCX", "LS", "CS", "KS", "LA", "CA", "KA", "LI", "CI", "KI", "LX", "*CX", "KX"));
+                for (int i = 0; i < 10; i++)
                 {
-                    output.WriteLine(String.Format("{0,-6} {1,10:N2} {2,10} {3,10} {4,10} {5,10:N2} {6,10:N2} {7,10:N2} {8,10} {9,10} {10,10} {11,10} {12,10} {13,10}",
-                                                   i + 1, //invocacion.JsonClass + "." + invocacion.Nombre, 
-                                                   metrics.ImportNormal.NormalizeCycloMax(invocacion.ImportCLYCLOMax),
-                                                   invocacion.ImportLOCSum, invocacion.ImportCLYCLOSum, invocacion.ImportConstantSum,
-                                                   invocacion.ImportLOCAvg, invocacion.ImportCLYCLOAvg, invocacion.ImportConstantAvg,
-                                                   invocacion.ImportLOCMin, invocacion.ImportCLYCLOMin, invocacion.ImportConstantMin,
-                                                   invocacion.ImportLOCMax, invocacion.ImportCLYCLOMax, invocacion.ImportConstantMax));
+                    Metodo invocacion = listaMetodos[i];
+                    if (invocacion.EsLlamador || invocacion.EsLlamado)
+                    {
+                        output.WriteLine(String.Format("{0,-6} {1,10:N2} {2,10} {3,10} {4,10} {5,10:N2} {6,10:N2} {7,10:N2} {8,10} {9,10} {10,10} {11,10} {12,10} {13,10}",
+                                                       i + 1, //invocacion.JsonClass + "." + invocacion.Nombre, 
+                                                       metrics.ImportNormal.NormalizeCycloMax(invocacion.ImportCLYCLOMax),
+                                                       invocacion.ImportLOCSum, invocacion.ImportCLYCLOSum, invocacion.ImportConstantSum,
+                                                       invocacion.ImportLOCAvg, invocacion.ImportCLYCLOAvg, invocacion.ImportConstantAvg,
+                                                       invocacion.ImportLOCMin, invocacion.ImportCLYCLOMin, invocacion.ImportConstantMin,
+                                                       invocacion.ImportLOCMax, invocacion.ImportCLYCLOMax, invocacion.ImportConstantMax));
+                    }
                 }
-            }
 
-            List<Pair> listaPares = metrics.obtainMaxPairs();
+                List<Pair> listaPares = metrics.obtainMaxPairs();
 
-            //foreach (Pair pair in metrics.ListaPares)
-            //    output.WriteLine(pair.ToString());
+                //foreach (Pair pair in metrics.ListaPares)
+                //    output.WriteLine(pair.ToString());
 
-            output.WriteLine("\n\n*");
-            output.WriteLine("*");
-            output.WriteLine("* 10 pares de métodos con mayor Fuerza de Acoplamiento Cyclomática Maxima");
-            output.WriteLine("*");
-            output.WriteLine(String.Format("* CXmin={0} CXmax={1}", metrics.PairNormal.CycloMaxMin, metrics.PairNormal.CycloMaxMax));
-            output.WriteLine("");
-            output.WriteLine(String.Format("{0,-6} {1,-6} {2,10} {3,10} {4,10:N2} {5,10} {6,10:N2} {7,10:N2} {8,10:N2} {9,10} {10,10} {11,10} {12,10} {13,10} {14,10}",
-                                           "Caller", "Callee", "LS", "CS", "*NCX", "KS", "LA", "CA", "KA", "LI", "CI", "KI", "LX", "*CX", "KX"));
-            for (int i = 0; i < 10; i++)
-            {
-                Pair invocacion = listaPares[i];
-                if (invocacion != null)
+                output.WriteLine("\n\n*");
+                output.WriteLine("*");
+                output.WriteLine("* 10 pares de métodos con mayor Fuerza de Acoplamiento Cyclomática Maxima");
+                output.WriteLine("*");
+                output.WriteLine(String.Format("* CXmin={0} CXmax={1}", metrics.PairNormal.CycloMaxMin, metrics.PairNormal.CycloMaxMax));
+                output.WriteLine("");
+                output.WriteLine(String.Format("{0,-6} {1,-6} {2,10} {3,10} {4,10:N2} {5,10} {6,10:N2} {7,10:N2} {8,10:N2} {9,10} {10,10} {11,10} {12,10} {13,10} {14,10}",
+                                               "Caller", "Callee", "LS", "CS", "*NCX", "KS", "LA", "CA", "KA", "LI", "CI", "KI", "LX", "*CX", "KX"));
+                for (int i = 0; i < 10; i++)
                 {
-                    output.WriteLine(String.Format("{0,-6} {1,-6} {2,10} {3,10} {4,10:N2} {5,10} {6,10:N2} {7,10:N2} {8,10:N2} {9,10} {10,10} {11,10} {12,10} {13,10} {14,10}",
-                                                   i + 1, //invocacion.NombreI,
-                                                   " ", //invocacion.NombreD,
-                                                   invocacion.LocSum, invocacion.CycloSum, metrics.PairNormal.NormalizeCycloMax(invocacion.CycloMax), invocacion.ConstantSum,
-                                                   invocacion.LocAvg, invocacion.CycloAvg, invocacion.ConstantAvg,
-                                                   invocacion.LocMin, invocacion.CycloMin, invocacion.ConstantMin,
-                                                   invocacion.LocMax, invocacion.CycloMax, invocacion.ConstantMax));
+                    Pair invocacion = listaPares[i];
+                    if (invocacion != null)
+                    {
+                        output.WriteLine(String.Format("{0,-6} {1,-6} {2,10} {3,10} {4,10:N2} {5,10} {6,10:N2} {7,10:N2} {8,10:N2} {9,10} {10,10} {11,10} {12,10} {13,10} {14,10}",
+                                                       i + 1, //invocacion.NombreI,
+                                                       " ", //invocacion.NombreD,
+                                                       invocacion.LocSum, invocacion.CycloSum, metrics.PairNormal.NormalizeCycloMax(invocacion.CycloMax), invocacion.ConstantSum,
+                                                       invocacion.LocAvg, invocacion.CycloAvg, invocacion.ConstantAvg,
+                                                       invocacion.LocMin, invocacion.CycloMin, invocacion.ConstantMin,
+                                                       invocacion.LocMax, invocacion.CycloMax, invocacion.ConstantMax));
+                    }
                 }
+                output.WriteLine("\n\nCantidad de LOC: " + Metodo.TotalDeLOC);
+                output.WriteLine("Cantidad de métodos: " + Metodo.CantidadMetodos);
+                output.WriteLine("Cantidad de classes: " + cantidadClases);
+                output.WriteLine("Cadena más larga: " + grafo.CantidadMayorMetodosEnCadena);
+                output.WriteLine("Cantidad de cadenas: " + grafo.ListaDeCadenas.Count);
+
+                output.Flush();
+
+                Console.Read();
             }
-            output.WriteLine("\n\nCantidad de LOC: " + Metodo.TotalDeLOC);
-            output.WriteLine("Cantidad de métodos: " + Metodo.CantidadMetodos);
-            output.WriteLine("Cantidad de classes: " + cantidadClases);
-            output.WriteLine("Cadena más larga: " + grafo.CantidadMayorMetodosEnCadena);
-            output.WriteLine("Cantidad de cadenas: " + grafo.ListaDeCadenas.Count);
-
-            output.Flush();
-
-            Console.Read();
         }
 
         [STAThread]
         private static Compilation CreateTestCompilation()//JsonClass para la creacion de los árboles de sintaxis
         {
             FolderBrowserDialog entrada = new FolderBrowserDialog();
+            entrada.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\Ejemplo";
             //entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
-            entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
+            //entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
             entrada.Description = @"Input folder";
             if (entrada.ShowDialog() == DialogResult.OK)
             {
@@ -824,12 +829,33 @@ namespace ProjectParser
                 JsonMethod n = entry.Value;
                 if (n.Visited == false)
                 {
-                    GabowDFS(n);
+                    GabowDFS(n, 0);
                 }
             }
+
+            /*
+            long maxLen = 0;
+            long avgLen = 0;
+            long count = 0;
+            foreach (JsonMethod m in JsonMethod.SccList)
+            {
+                long c = 0;
+                Console.Write("SCC" + m.SccId + " (" + m.SccMethods.Count + "): ");
+                foreach (JsonMethod s in m.SccMethods)
+                {
+                    c++;
+                    Console.Write(s.Name + ", ");
+                }
+                Console.WriteLine();
+                maxLen = Math.Max(maxLen, c);
+                avgLen += c;
+                count++;
+            }
+            Console.WriteLine("Count: " + count.ToString() + ", Max: " + maxLen.ToString() + ", Avg: " + (avgLen / count).ToString());
+            */
         }
 
-        private static void GabowDFS(JsonMethod n)
+        private static void GabowDFS(JsonMethod n, int depth)
         {
             Stack<JsonMethod> P = JsonMethod.P;
             Stack<JsonMethod> R = JsonMethod.R;
@@ -846,7 +872,7 @@ namespace ProjectParser
 
                 if (m.Visited == false)
                 {
-                    GabowDFS(m);
+                    GabowDFS(m, depth+1);
                 }
                 else if (m.SccId == -1)
                 {
@@ -861,11 +887,20 @@ namespace ProjectParser
             {
                 R.Pop();
 
-                if (P.Count > 0 && P.Peek().Id != n.Id)
+                if (P.Count > 0 && P.Peek().Id == n.Id)
+                {
+                    P.Peek().SccId = JsonProject.Nextid++;
+                    P.Pop();
+                }
+                else
                 {
                     JsonMethod o, scc;
 
                     scc = new JsonMethod(JsonProject.Nextid, "SCC" + JsonProject.Nextid++);
+                    scc.SccId = scc.Id;
+                    scc.IsMethod = false;
+                    scc.IsScc = true;
+
                     JsonMethod.SccList.Add(scc);
 
                     do
@@ -875,20 +910,15 @@ namespace ProjectParser
                         o.Scc = scc;
                         o.IsCollapsed = true;
 
-                        scc.SccId = scc.Id;
                         scc.SccMethods.Add(o);
                         scc.Calls.UnionWith(o.Calls);
                         scc.CalledBy.UnionWith(o.CalledBy);
-                        scc.IsMethod = false;
-                        scc.IsScc = true;
 
                     } while (P.Count > 0 && o.Id != n.Id);
 
                     scc.Calls.RemoveWhere(c => c.Method.SccId == scc.SccId);
                     scc.CalledBy.RemoveWhere(c => c.Method.SccId == scc.SccId);
                 }
-
-                JsonMethod.Idx++;
             }
         }
 
@@ -902,10 +932,9 @@ namespace ProjectParser
             // obtener los objetos en un namespace por nombre (namespace, clases y metodos)
             //      match ((n {qualifiedname:'Microsoft.CodeAnalysis.CSharp.DesignerAttributes'})-->(c)) return n,c
             // borrar todos los objetos
-            //      match(n) detach delete n
+            //      match(n: Scc) detach delete n
             //
-            // match (m:Method)
-            // create(s: Scc { scc: m.scc})-[:COLLAPSES]->(m)
+            // match (m:Method) create(s: Scc { scc: m.scc})-[:COLLAPSES]->(m)
         }
 
         private static void UploadCSVtoNeo4J()
