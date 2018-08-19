@@ -4,18 +4,18 @@ namespace ProjectParser
 {
     public class ForwardMetrics : ICloneable
     {
-        double favg = 0;
-        double fmax = 0;
-        double fmin = double.MaxValue;
-        double fcnt = 0;
-        double fsum = 0;
-        double fcntproc = 0;
+        int favg = 0;
+        int fmax = 0;
+        int fmin = int.MaxValue;
+        int fcnt = 0;
+        int fsum = 0;
+        int fcntproc = 0;
 
         public ForwardMetrics()
         {
         }
 
-        public void InitForward(double value)
+        public void InitForward(int value)
         {
             this.Fsum = value;
             this.Fmax = value;
@@ -24,7 +24,7 @@ namespace ProjectParser
             this.Fcnt = 1;
         }
 
-        public void AddForward(double value, Metrics m)
+        public void AddForward(int value, Metrics m)
         {
             this.Fsum = m.Fsum + value;
             this.Fmax = Math.Max(this.Fmax, this.Fsum);
@@ -38,12 +38,12 @@ namespace ProjectParser
             this.Favg /= Fcnt;
         }
 
-        public double Favg { get => favg; set => favg = value; }
-        public double Fmax { get => fmax; set => fmax = value; }
-        public double Fmin { get => fmin; set => fmin = value; }
-        public double Fcnt { get => fcnt; set => fcnt = value; }
-        public double Fsum { get => fsum; set => fsum = value; }
-        public double Fcntproc { get => fcntproc; set => fcntproc = value; }
+        public int Favg { get => favg; set => favg = value; }
+        public int Fmax { get => fmax; set => fmax = value; }
+        public int Fmin { get => fmin; set => fmin = value; }
+        public int Fcnt { get => fcnt; set => fcnt = value; }
+        public int Fsum { get => fsum; set => fsum = value; }
+        public int Fcntproc { get => fcntproc; set => fcntproc = value; }
 
         public object Clone()
         {

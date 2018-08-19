@@ -8,12 +8,12 @@ namespace ProjectParser
 {
     class JsonChain
     {
-        long id;
-        double kon;
-        double loc;
-        double cyc;
+        int id;
+        int kon;
+        int loc;
+        int cyc;
 
-        public JsonChain(long id)
+        public JsonChain(int id)
         {
             this.id = id;
             this.kon = 0;
@@ -21,7 +21,7 @@ namespace ProjectParser
             this.cyc = 0;
         }
 
-        public JsonChain(long id, double kon, double loc, double cyc)
+        public JsonChain(int id, int kon, int loc, int cyc)
         {
             this.id = id;
             this.kon = kon;
@@ -40,9 +40,9 @@ namespace ProjectParser
             return list.Count;
         }
 
-        public long Id { get => id; set => id = value; }
-        public double Kon { get => kon; set => kon = value; }
-        public double Loc { get => loc; set => loc = value; }
-        public double Cyc { get => cyc; set => cyc = value; }
+        public int Id { get => id; set => id = value; }
+        public int Kon { get => kon; set => kon = value; }
+        public int Loc { get => loc; set => loc = value; }
+        public int Cyc { get => cyc; set => cyc = value; }
     }
 }

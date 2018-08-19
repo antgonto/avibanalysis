@@ -12,14 +12,14 @@ namespace ProjectParser
     {
         static Dictionary<string, JsonNamespace> namespaces = new Dictionary<string, JsonNamespace>();
         static JsonProject project;
-        long id;
+        int id;
         string name;
         string fullname;
-        long parentid;
+        int parentid;
         List<JsonNamespace> childNamespaces = new List<JsonNamespace>();
         List<JsonClass> classes = new List<JsonClass>();
 
-        public JsonNamespace(long id, string name, string fullname, long parentid)
+        public JsonNamespace(int id, string name, string fullname, int parentid)
         {
             this.Id = id;
             this.Name = name;
@@ -29,13 +29,13 @@ namespace ProjectParser
 
         public static JsonProject Project { get => project; set => project = value; }
         [JsonProperty]
-        public long Id { get => id; set => id = value; }
+        public int Id { get => id; set => id = value; }
         [JsonProperty]
         public string Name { get => name; set => name = value; }
         [JsonProperty]
         public string Fullname { get => fullname; set => fullname = value; }
         [JsonProperty]
-        public long ParentId { get => parentid; set => parentid = value; }
+        public int ParentId { get => parentid; set => parentid = value; }
         [JsonProperty("Namespaces")]
         internal List<JsonNamespace> ChildNamespaces { get => childNamespaces; set => childNamespaces = value; }
         [JsonProperty("Classes")]
@@ -52,7 +52,7 @@ namespace ProjectParser
                 List<JsonNamespace> nslist = project.Namespaces;
                 List<JsonNamespace> childlist = nslist;
                 string nameprefix = "";
-                long parent = -1;
+                int parent = -1;
 
                 // Build/traverse namespaces hierarchy
                 for (int i = 0; i < namespaceParts.Length; i++)

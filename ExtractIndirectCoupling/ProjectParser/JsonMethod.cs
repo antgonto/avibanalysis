@@ -22,8 +22,8 @@ namespace ProjectParser
         static SparseMatrix<int> methodChainPairs;
         static SparseMatrix<PairMetrics> pairMetricsList;
 
-        long id;
-        long sccId = -1;
+        int id;
+        int sccId = -1;
         JsonMethod scc = null;
         bool isMethod = true;
         bool isScc = false;
@@ -45,16 +45,16 @@ namespace ProjectParser
         Metrics cyc_metrics = new Metrics();
 
         // SCC Metric Values
-        Dictionary<long, Dictionary<long, List<ForwardMetrics>>> sccForward;
-        Dictionary<long, Dictionary<long, List<BackwardMetrics>>> sccBackward;
+        Dictionary<int, Dictionary<int, List<ForwardMetrics>>> sccForward;
+        Dictionary<int, Dictionary<int, List<BackwardMetrics>>> sccBackward;
 
         static Dictionary<string, JsonMethod> methods = new Dictionary<string, JsonMethod>();
         static List<JsonMethod> sccList = new List<JsonMethod>();
 
         // Gabow's Algorithm
         bool visited = false;
-        long pre;
-        static long prev = 0;
+        int pre;
+        static int prev = 0;
         static Stack<JsonMethod> p = new Stack<JsonMethod>();
         static Stack<JsonMethod> r = new Stack<JsonMethod>();
 
@@ -64,7 +64,7 @@ namespace ProjectParser
 
         bool dfsFlag = false;
 
-        public JsonMethod(long id, string name)
+        public JsonMethod(int id, string name)
         {
             this.id = id;
             this.name = name;
@@ -76,7 +76,7 @@ namespace ProjectParser
             this.Cyc = 1;
         }
 
-        public JsonMethod(long id, string name, JsonClass clase, JsonNamespace @namespace, int loc, int kon, int cyc)
+        public JsonMethod(int id, string name, JsonClass clase, JsonNamespace @namespace, int loc, int kon, int cyc)
         {
             this.id = id;
             this.name = name;
@@ -426,10 +426,10 @@ namespace ProjectParser
             for (int cidx1 = 0; cidx1 < methodChainsCnt[(int)m1.Id]; cidx1++)
             {
                 JsonLink link1 = methodChains[cidx1, m1.Id];
-                long chainId = link1.Chain.Id;
+                int chainId = link1.ChainId;
                 if (methodChainPairs.IsCellPresent(chainId, m2.Id))
                 {
-                    long m2idx = methodChainPairs[chainId, m2.Id];
+                    int m2idx = methodChainPairs[chainId, m2.Id];
                     if (chainMethods.IsCellPresent(chainId, m2idx))
                     {
                         JsonLink link2 = chainMethods[chainId, m2idx];
@@ -451,9 +451,6 @@ namespace ProjectParser
 
             if (hasData)
             {
-                metrics.Method1 = m1.Fullname;
-                metrics.Method2 = m2.Fullname;
-
                 AvgPairMetrics(metrics);
 
                 SetPairMetricsSum(metrics, methodSet);
@@ -481,7 +478,7 @@ namespace ProjectParser
             chainMethodsCnt.Add(mCnt);
 
             int cidx = methodChainsCnt[(int)list[0].Id]++;
-            JsonLink link = new JsonLink(list[0], ch, 0, cidx);
+            JsonLink link = new JsonLink(list[0], chainId, 0, cidx);
             chainMethods[chainId, 0] = link;
             methodChains[cidx, list[0].Id] = link;
 
@@ -495,20 +492,18 @@ namespace ProjectParser
                 AddForwardMetrics(list[midx - 1], list[midx]);
                 AddBackwardMetrics(list[mCnt - midx - 1], list[mCnt - midx]);
 
-                link = new JsonLink(m, ch, midx, cidx);
+                link = new JsonLink(m, chainId, midx, cidx);
 
                 chainMethods[chainId, midx] = link;
                 methodChains[cidx, m.Id] = link;
 
                 methodChainPairs[chainId, m.Id] = midx;
-
-                //idx++;
             }
         }
 
         // Sync
         [MethodImplAttribute(MethodImplOptions.Synchronized)]
-        static void CollectNewPair(long m1Id, long m2Id, PairMetrics p)
+        static void CollectNewPair(int m1Id, int m2Id, PairMetrics p)
         {
             pairMetricsList[m1Id, m2Id] = p;
         }
@@ -632,7 +627,7 @@ namespace ProjectParser
             for (int cidx = 0; cidx < methodChainsCnt[mId]; cidx++)
             {
                 JsonLink link = methodChains[cidx, mId];
-                chId = (int)link.Chain.Id;
+                chId = (int)link.ChainId;
                 for (int midx = 0; midx < chainMethodsCnt[chId]; midx++)
                 {
                     if (link.MethodIdx < chainMethods[chId, midx].MethodIdx)
@@ -944,8 +939,8 @@ namespace ProjectParser
 
         public static void CountChainsUsingDFS(JsonProject project)
         {
-            ulong count = 0;
-            ulong avgdepth = 0;
+            int count = 0;
+            int avgdepth = 0;
 
             List<JsonMethod> list = new List<JsonMethod>();
 
@@ -975,7 +970,7 @@ namespace ProjectParser
             }
         }
 
-        static void CountDFS(JsonMethod m, ulong depth, ref ulong avgdepth, ref ulong count, JsonProject project)
+        static void CountDFS(JsonMethod m, int depth, ref int avgdepth, ref int count, JsonProject project)
         {
             if (m.IsCollapsed)
             {
@@ -1075,19 +1070,19 @@ namespace ProjectParser
         }
 
         [JsonProperty]
-        public long Id { get => id; set => id = value; }
+        public int Id { get => id; set => id = value; }
         [JsonProperty]
         public string Name { get => name; set => name = value; }
         [JsonProperty]
         public string Fullname { get => fullname; set => fullname = value; }
         [JsonProperty("ClassId")]
-        public long ClassId { get => oclass.Id; set => oclass.Id = value; }
+        public int ClassId { get => oclass.Id; set => oclass.Id = value; }
         [JsonProperty("Class")]
         public string ClassName { get => oclass.Name; set => oclass.Name = value; }
         [JsonProperty("FullClassname")]
         public string FullClassname { get => oclass.Fullname; set => oclass.Fullname = value; }
         [JsonProperty("NamespaceId")]
-        public long NamespaceId { get => onamespace.Id; set => onamespace.Id = value; }
+        public int NamespaceId { get => onamespace.Id; set => onamespace.Id = value; }
         [JsonProperty("Namespace")]
         public string NamespaceName { get => onamespace.Name; set => onamespace.Name = value; }
         [JsonProperty("FullNamespace")]
@@ -1103,11 +1098,11 @@ namespace ProjectParser
 
         // For Gabo's Algorithm
         public bool Visited { get => visited; set => visited = value; }
-        public long Pre { get => pre; set => pre = value; }
-        public static long Prev { get => prev; set => prev = value; }
+        public int Pre { get => pre; set => pre = value; }
+        public static int Prev { get => prev; set => prev = value; }
         internal static Stack<JsonMethod> P { get => p; set => p = value; }
         internal static Stack<JsonMethod> R { get => r; set => r = value; }
-        public long SccId { get => sccId; set => sccId = value; }
+        public int SccId { get => sccId; set => sccId = value; }
         public JsonMethod Scc { get => scc; set => scc = value; }
         public bool IsMethod { get => isMethod; set => isMethod = value; }
         public bool IsScc { get => isScc; set => isScc = value; }
@@ -1122,8 +1117,8 @@ namespace ProjectParser
         public Metrics Loc_metrics { get => loc_metrics; set => loc_metrics = value; }
         public Metrics Cyc_metrics { get => cyc_metrics; set => cyc_metrics = value; }
         public bool IsRecursive { get => isRecursive; set => isRecursive = value; }
-        public Dictionary<long, Dictionary<long, List<ForwardMetrics>>> SccForward { get => sccForward; set => sccForward = value; }
-        public Dictionary<long, Dictionary<long, List<BackwardMetrics>>> SccBackward { get => sccBackward; set => sccBackward = value; }
+        public Dictionary<int, Dictionary<int, List<ForwardMetrics>>> SccForward { get => sccForward; set => sccForward = value; }
+        public Dictionary<int, Dictionary<int, List<BackwardMetrics>>> SccBackward { get => sccBackward; set => sccBackward = value; }
         internal static SparseMatrix<PairMetrics> PairMetricsList { get => pairMetricsList; set => pairMetricsList = value; }
     }
 }

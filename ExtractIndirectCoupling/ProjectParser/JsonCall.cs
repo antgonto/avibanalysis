@@ -10,15 +10,15 @@ namespace ProjectParser
     [JsonObject(MemberSerialization.OptIn, Description = "Method")]
     public class JsonCall : IEquatable<JsonCall>, ICloneable
     {
-        long id;
+        int id;
         string name;
-        long classId;
+        int classId;
         string className;
-        long namespaceId;
+        int namespaceId;
         string namespaceName;
         JsonMethod method;
 
-        public JsonCall(long id, string name, long classId, string className, long namespaceId, string namespaceName, JsonMethod method)
+        public JsonCall(int id, string name, int classId, string className, int namespaceId, string namespaceName, JsonMethod method)
         {
             this.id = id;
             this.name = name;
@@ -30,19 +30,19 @@ namespace ProjectParser
         }
 
         [JsonProperty]
-        public long Id { get => id; set => id = value; }
+        public int Id { get => id; set => id = value; }
         [JsonProperty]
         public string Name { get => name; set => name = value; }
         [JsonProperty]
         public string Fullname { get => namespaceName + "." + className + "." + name; }
         [JsonProperty("ClassId")]
-        public long ClassId { get => classId; set => classId = value; }
+        public int ClassId { get => classId; set => classId = value; }
         [JsonProperty("Class")]
         public string ClassName { get => className; set => className = value; }
         [JsonProperty]
         public string FullClassname { get => namespaceName + "." + className; }
         [JsonProperty("NamespaceId")]
-        public long NamespaceId { get => namespaceId; set => namespaceId = value; }
+        public int NamespaceId { get => namespaceId; set => namespaceId = value; }
         [JsonProperty("FullNamespace")]
         public string FullNamespace { get => namespaceName; set => namespaceName = value; }
         public JsonMethod Method { get => method; set => method = value; }

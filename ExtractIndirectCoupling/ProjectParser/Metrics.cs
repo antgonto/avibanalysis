@@ -4,18 +4,18 @@ namespace ProjectParser
 {
     public class Metrics : ICloneable
     {
-        double favg = 0;
-        double fmax = 0;
-        double fmin = double.MaxValue;
-        double fcnt = 0;
-        double fsum = 0;
-        double fcntproc = 0;
-        double bavg = 0;
-        double bmax = 0;
-        double bmin = double.MaxValue;
-        double bcnt = 0;
-        double bsum = 0;
-        double bcntproc = 0;
+        int favg = 0;
+        int fmax = 0;
+        int fmin = int.MaxValue;
+        int fcnt = 0;
+        int fsum = 0;
+        int fcntproc = 0;
+        int bavg = 0;
+        int bmax = 0;
+        int bmin = int.MaxValue;
+        int bcnt = 0;
+        int bsum = 0;
+        int bcntproc = 0;
 
         public Metrics()
         {
@@ -49,7 +49,7 @@ namespace ProjectParser
             return m;
         }
 
-        public void InitForward(double value)
+        public void InitForward(int value)
         {
             this.Fsum = value;
             this.Fmax = value;
@@ -58,7 +58,7 @@ namespace ProjectParser
             this.Fcnt = 1;
         }
 
-        public void AddForward(double value, Metrics m)
+        public void AddForward(int value, Metrics m)
         {
             this.Fsum = m.Fsum + value;
             this.Fmax = Math.Max(this.Fmax, this.Fsum);
@@ -73,7 +73,7 @@ namespace ProjectParser
             this.Bavg /= Bcnt;
         }
 
-        public void InitBackward(double value)
+        public void InitBackward(int value)
         {
             this.Bsum = value;
             this.Bmax = value;
@@ -82,7 +82,7 @@ namespace ProjectParser
             this.Bcnt = 1;
         }
 
-        public void AddBackward(double value, Metrics m)
+        public void AddBackward(int value, Metrics m)
         {
             this.Bsum = m.Bsum + value;
             this.Bmax = Math.Max(this.Bmax, this.Bsum);
@@ -91,18 +91,18 @@ namespace ProjectParser
             this.Bcnt++;
         }
 
-        public double Favg { get => favg; set => favg = value; }
-        public double Fmax { get => fmax; set => fmax = value; }
-        public double Fmin { get => fmin; set => fmin = value; }
-        public double Fcnt { get => fcnt; set => fcnt = value; }
-        public double Fsum { get => fsum; set => fsum = value; }
-        public double Bavg { get => bavg; set => bavg = value; }
-        public double Bmax { get => bmax; set => bmax = value; }
-        public double Bmin { get => bmin; set => bmin = value; }
-        public double Bcnt { get => bcnt; set => bcnt = value; }
-        public double Bsum { get => bsum; set => bsum = value; }
-        public double Fcntproc { get => fcntproc; set => fcntproc = value; }
-        public double Bcntproc { get => bcntproc; set => bcntproc = value; }
+        public int Favg { get => favg; set => favg = value; }
+        public int Fmax { get => fmax; set => fmax = value; }
+        public int Fmin { get => fmin; set => fmin = value; }
+        public int Fcnt { get => fcnt; set => fcnt = value; }
+        public int Fsum { get => fsum; set => fsum = value; }
+        public int Bavg { get => bavg; set => bavg = value; }
+        public int Bmax { get => bmax; set => bmax = value; }
+        public int Bmin { get => bmin; set => bmin = value; }
+        public int Bcnt { get => bcnt; set => bcnt = value; }
+        public int Bsum { get => bsum; set => bsum = value; }
+        public int Fcntproc { get => fcntproc; set => fcntproc = value; }
+        public int Bcntproc { get => bcntproc; set => bcntproc = value; }
 
         public object Clone()
         {

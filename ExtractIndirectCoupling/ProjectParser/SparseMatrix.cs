@@ -8,43 +8,43 @@ namespace ProjectParser
 {
     public class SparseMatrix<T>
     {
-        public long Width { get; private set; }
-        public long Height { get; private set; }
+        public int Width { get; private set; }
+        public int Height { get; private set; }
         public long Size { get; private set; }
 
         private Dictionary<long, T> _cells = new Dictionary<long, T>();
 
-        public SparseMatrix(long w, long h)
+        public SparseMatrix(int w, int h)
         {
             this.Width = w;
             this.Height = h;
-            this.Size = w * h;
+            this.Size = (long)w * (long)h;
         }
 
-        public void IncreaseHeight(long h)
+        public void IncreaseHeight(int h)
         {
             if (h < this.Height) throw new InvalidOperationException("Matrix height cannot be shrunk");
             this.Height = h;
-            this.Size = this.Width * h;
+            this.Size = (long)this.Width * (long)h;
         }
 
-        public bool IsCellPresent(long row, long col)
+        public bool IsCellPresent(int row, int col)
         {
             if (col >= this.Width) throw new IndexOutOfRangeException("Column index is out of range");
             if (row >= this.Height)
-                IncreaseHeight((long)(row * 1.25));
+                IncreaseHeight((int)(row * 1.25));
 
-            long index = row * Width + col;
+            long index = (long)row * (long)Width + (long)col;
             return _cells.ContainsKey(index);
         }
 
-        public T this[long row, long col]
+        public T this[int row, int col]
         {
             get
             {
                 if (col >= this.Width) throw new IndexOutOfRangeException("Column index is out of range");
 
-                long index = row * Width + col;
+                long index = (long)row * (long)Width + (long)col;
                 T result;
                 _cells.TryGetValue(index, out result);
                 return result;
@@ -53,9 +53,9 @@ namespace ProjectParser
             {
                 if (col >= this.Width) throw new IndexOutOfRangeException("Column index is out of range");
                 if (row >= this.Height)
-                    IncreaseHeight((long)(row * 1.25));
+                    IncreaseHeight((int)(row * 1.25));
 
-                long index = row * Width + col;
+                long index = (long)row * (long)Width + (long)col;
                 _cells[index] = value;
             }
         }

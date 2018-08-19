@@ -10,7 +10,7 @@ namespace ProjectParser
     [JsonObject(MemberSerialization.OptIn, Description = "Project")]
     public class JsonProject
     {
-        static long nextid = 0;
+        static int nextid = 0;
         string name;
         List<JsonNamespace> namespaces = new List<JsonNamespace>();
         List<List<JsonCall>> chains = new List<List<JsonCall>>();
@@ -22,6 +22,6 @@ namespace ProjectParser
         // Disabled until chains collection runtime issue is solved
         //[JsonProperty]
         public List<List<JsonCall>> Chains { get => chains; set => chains = value; }
-        public static long Nextid { get => nextid; set => nextid = value; }
+        public static int Nextid { get => nextid; set => nextid = value; }
     }
 }

@@ -10,13 +10,13 @@ namespace ProjectParser
     [JsonObject(MemberSerialization.OptIn, Description = "Attribute")]
     public class JsonAttribute
     {
-        long id;
+        int id;
         string name;
         JsonClass oClass;
         JsonNamespace oNamespace;
         static Dictionary<string, JsonAttribute> attributes = new Dictionary<string, JsonAttribute>();
         List<JsonCall> calledBy = new List<JsonCall>();
-        public JsonAttribute(long id, string name, JsonClass clase, JsonNamespace workspace)
+        public JsonAttribute(int id, string name, JsonClass clase, JsonNamespace workspace)
         {
             this.id = id;
             this.name = name;
@@ -40,15 +40,15 @@ namespace ProjectParser
         }
 
         [JsonProperty]
-        public long Id { get => id; set => id = value; }
+        public int Id { get => id; set => id = value; }
         [JsonProperty]
         public string Name { get => name; set => name = value; }
         [JsonProperty("ClassId")]
-        public long ClaseId { get => oClass.Id; set => oClass.Id = value; }
+        public int ClaseId { get => oClass.Id; set => oClass.Id = value; }
         [JsonProperty("Class")]
         public string ClaseName { get => oClass.Name; set => oClass.Name = value; }
         [JsonProperty("NamespaceId")]
-        public long NamespaceId { get => oNamespace.Id; set => oNamespace.Id = value; }
+        public int NamespaceId { get => oNamespace.Id; set => oNamespace.Id = value; }
         [JsonProperty("Namespace")]
         public string NamespaceName { get => oNamespace.Name; set => oNamespace.Name = value; }
         [JsonProperty]

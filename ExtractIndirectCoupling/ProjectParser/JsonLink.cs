@@ -9,14 +9,14 @@ namespace ProjectParser
     class JsonLink
     {
         JsonMethod method;
-        JsonChain chain;
+        int chainId;
         int methodIdx;
         int chainIdx;
 
-        public JsonLink(JsonMethod method, JsonChain chain, int methodIdx, int chainIdx)
+        public JsonLink(JsonMethod method, int chainId, int methodIdx, int chainIdx)
         {
             this.method = method;
-            this.chain = chain;
+            this.chainId = chainId;
             this.methodIdx = methodIdx;
             this.chainIdx = chainIdx;
         }
@@ -24,6 +24,6 @@ namespace ProjectParser
         public JsonMethod Method { get => method; set => method = value; }
         public int MethodIdx { get => methodIdx; set => methodIdx = value; }
         public int ChainIdx { get => chainIdx; set => chainIdx = value; }
-        internal JsonChain Chain { get => chain; set => chain = value; }
+        public int ChainId { get => chainId; set => chainId = value; }
     }
 }
