@@ -8,7 +8,12 @@ namespace edu.tec.avib
 {
     class A
     {
+        int attribute = 0;
+
         public int metodoA1() {
+
+            this.attribute = 1000;
+
             Console.WriteLine("Clase A Metodo 1");
             B claseB = new B();
             if(0==0)

@@ -12,6 +12,7 @@ using System.Windows.Forms;
 using System.Reflection;
 using Newtonsoft.Json;
 using Neo4j.Driver.V1;
+using System.Diagnostics;
 
 //Tools> Nugget>Console
 // Install-Package Microsoft.CodeAnalysis
@@ -103,7 +104,6 @@ namespace ProjectParser
         [STAThread]
         private static void ExtractGraphFromAST(JsonProject project, Compilation myCompilation, string path)
         {
-            Console.WriteLine("Loading AST");
             Dictionary<string, JsonMethod> nodoNamespacesNeo4J = new Dictionary<string, JsonMethod>();
             // Send output to a file
             System.IO.StreamWriter output = new System.IO.StreamWriter(@"" + path + @"\graph_info.txt");
@@ -216,35 +216,39 @@ namespace ProjectParser
                             if (!iSymbol.MethodKind.ToString().Equals("ReducedExtension") &&
                                 !iSymbol.MethodKind.ToString().Equals("LocalFunction"))
                             {
-                                //-1 because is only search
+                                // 0 search only 
                                 JsonMethod caller = JsonMethod.GetMethod(FindMethodName(methodDec),
-                                    FindClassName(classDec), namespaceDec == null ? "" : namespaceDec.Name.ToString(),
-                                    -1,
-                                    -1,
-                                    -1);
+                                    FindClassName(classDec), namespaceDec.Name.ToString(), 0, 0, 0);
 
                                 string mname = iSymbol.Name;
                                 string cname = iSymbol.ContainingSymbol.Name;
                                 string nname = iSymbol.ContainingNamespace.ToString();
-                                //-1 because is only search
-                                JsonMethod callee = JsonMethod.GetMethod(mname, cname, nname,-1,-1,-1);
+                                // 0 search only
+                                JsonMethod callee = JsonMethod.GetMethod(mname, cname, nname, 0, 0, 0);
 
-                                JsonCall callerEntry = new JsonCall(caller.Id, caller.Name, caller.ClassId, caller.ClassName, caller.NamespaceId, caller.FullNamespaceName, caller);
-                                JsonCall calleeEntry = new JsonCall(callee.Id, callee.Name, callee.ClassId, callee.ClassName, callee.NamespaceId, callee.FullNamespaceName, callee);
-
-                                if (!callee.CalledBy.Contains(callerEntry))
+                                if (caller.Id == callee.Id)
                                 {
-                                    output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-150} {4,-150} {5,-150} {6,-15} {7,-15} {8,-15} {9,-15} {10,-15} {11,-15}",
-                                                                   caller.Name, callee.Name,
-                                                                   caller.ClassName, callee.ClassName,
-                                                                   caller.FullNamespaceName, callee.FullNamespaceName,
-                                                                   caller.Id, callee.Id,
-                                                                   caller.ClassId, callee.ClassId,
-                                                                   caller.NamespaceId, callee.NamespaceId));
+                                    caller.IsRecursive = true;
                                 }
+                                else
+                                {
+                                    JsonCall callerEntry = new JsonCall(caller.Id, caller.Name, caller.ClassId, caller.ClassName, caller.NamespaceId, caller.FullNamespaceName, caller);
+                                    JsonCall calleeEntry = new JsonCall(callee.Id, callee.Name, callee.ClassId, callee.ClassName, callee.NamespaceId, callee.FullNamespaceName, callee);
 
-                                if (!callee.CalledBy.Contains(callerEntry)) callee.CalledBy.Add(callerEntry);
-                                if (!caller.Calls.Contains(calleeEntry)) caller.Calls.Add(calleeEntry);
+                                    if (!callee.CalledBy.Contains(callerEntry))
+                                    {
+                                        output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-150} {4,-150} {5,-150} {6,-15} {7,-15} {8,-15} {9,-15} {10,-15} {11,-15}",
+                                                                       caller.Name, callee.Name,
+                                                                       caller.ClassName, callee.ClassName,
+                                                                       caller.FullNamespaceName, callee.FullNamespaceName,
+                                                                       caller.Id, callee.Id,
+                                                                       caller.ClassId, callee.ClassId,
+                                                                       caller.NamespaceId, callee.NamespaceId));
+                                    }
+
+                                    if (!callee.CalledBy.Contains(callerEntry)) callee.CalledBy.Add(callerEntry);
+                                    if (!caller.Calls.Contains(calleeEntry)) caller.Calls.Add(calleeEntry);
+                                }
                             }
                         }
                     }
@@ -264,22 +268,101 @@ namespace ProjectParser
 
             FolderBrowserDialog salida = new FolderBrowserDialog();
             salida.Description = @"Output folder";
-            salida.SelectedPath = @"C:\Users\Administrador\Documents\GitHub\avibanalysis\ExtractIndirectCoupling\output";
+            salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
+            //salida.SelectedPath = @"C:\Users\Administrador\Documents\GitHub\avibanalysis\ExtractIndirectCoupling\output";
             //salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
             if (salida.ShowDialog() == DialogResult.OK)
             {
+                Stopwatch timer = new Stopwatch();
+                Console.Write("Loading ASTs...");
+                timer.Start();
                 ExtractGraphFromAST(project, myCompilation, salida.SelectedPath);
-                Console.WriteLine("Loading data into database");
+                timer.Stop();
+                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
 
                 //SaveNeo4JGraph(project);
 
                 //connectNeo4J(project, salida.SelectedPath);
 
-                // Disabled until runing time issue is solved!
+                Console.Write("Collapsing SCCs...");
+                timer.Reset(); timer.Start();
                 CollapseGraphSCC();
+                timer.Stop();
+                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+
+                Console.Write("Collecting SCC Metrics using DFS...");
+                timer.Reset(); timer.Start();
+                JsonMethod.CollectSccMetricsUsingDFS();
+                timer.Stop();
+                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+
+                Console.Write("Collecting PDG Metrics using Dfs...");
+                timer.Reset(); timer.Start();
+                JsonMethod.CollectMetricsUsingDfs();
+                timer.Stop();
+                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+
+                Console.Write("Saving metrics output to metrics.txt...");
+                timer.Reset(); timer.Start();
+                // Send output to a file
+                System.IO.StreamWriter output = new System.IO.StreamWriter(@"" + salida.SelectedPath + @"\metrics.txt");
+
+                output.WriteLine("\n=============================================================================================\n");
+
+                // Print metrics for Methods/SCCs 
+
+                foreach (KeyValuePair<string, JsonMethod> kv in JsonMethod.Methods)
+                {
+                    JsonMethod m = kv.Value;
+                    if (m.IsCollapsed == true) continue;
+                    output.WriteLine(String.Format("Method: {0}-{1}  K:{2}  L:{3}  C:{4}", m.Id, m.Name, m.Kon, m.Loc, m.Cyc));
+                    output.WriteLine(String.Format("  FORWARD"));
+                    output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fcnt, m.Kon_metrics.Fsum));
+                    output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fcnt, m.Loc_metrics.Fsum));
+                    output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Cyc_metrics.Fmin, m.Cyc_metrics.Fmax, m.Cyc_metrics.Favg, m.Cyc_metrics.Fcnt, m.Cyc_metrics.Fsum));
+                    output.WriteLine(String.Format("  BACKWARD"));
+                    output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bcnt, m.Kon_metrics.Bsum));
+                    output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bcnt, m.Loc_metrics.Bsum));
+                    output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Cyc_metrics.Bmin, m.Cyc_metrics.Bmax, m.Cyc_metrics.Bavg, m.Cyc_metrics.Bcnt, m.Cyc_metrics.Bsum));
+                }
+                foreach (JsonMethod m in JsonMethod.SccList)
+                {
+                    output.WriteLine(String.Format("SCC: {0}-{1}  K:{2}  L:{3}  C:{4}", m.Id, m.Name, m.Kon, m.Loc, m.Cyc));
+                    output.WriteLine(String.Format("  FORWARD"));
+                    output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fcnt, m.Kon_metrics.Fsum));
+                    output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fcnt, m.Loc_metrics.Fsum));
+                    output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Cyc_metrics.Fmin, m.Cyc_metrics.Fmax, m.Cyc_metrics.Favg, m.Cyc_metrics.Fcnt, m.Cyc_metrics.Fsum));
+                    output.WriteLine(String.Format("  FORWARD"));
+                    output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bcnt, m.Kon_metrics.Bsum));
+                    output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bcnt, m.Loc_metrics.Bsum));
+                    output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Cyc_metrics.Bmin, m.Cyc_metrics.Bmax, m.Cyc_metrics.Bavg, m.Cyc_metrics.Bcnt, m.Cyc_metrics.Bsum));
+                }
+
+                output.WriteLine("\n=============================================================================================\n");
+
+                // Print metrics for Pairs of methods
+
+                for (int m1 = 0; m1 < JsonMethod.PairMetricsList.Width; m1++)
+                    for (int m2 = 0; m2 < JsonMethod.PairMetricsList.Height; m2++)
+                        if (JsonMethod.PairMetricsList.IsCellPresent(m1, m2))
+                        {
+                            PairMetrics m = JsonMethod.PairMetricsList[m1, m2];
+                            output.WriteLine(String.Format("From Method: {0}-{1} ==> To Method: {2}-{3}", m1, m.Method1, m2, m.Method2));
+                            output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.K.Fmin, m.K.Fmax, m.K.Favg, m.K.Fcnt, m.K.Fsum));
+                            output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.L.Fmin, m.L.Fmax, m.L.Favg, m.L.Fcnt, m.L.Fsum));
+                            output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.C.Fmin, m.C.Fmax, m.C.Favg, m.C.Fcnt, m.C.Fsum));
+                        }
+
+                output.WriteLine("\n=============================================================================================\n");
+                output.Flush();
+                output.Close();
+
+                timer.Stop();
+                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+
                 Console.Read();
-                JsonMethod.CountChainsUsingDFS(project);
-                //JsonMethod.CollectChainsUsingDFS(project);
+
+
 
                 JsonSerializer serializer = new JsonSerializer();
 
@@ -768,8 +851,8 @@ namespace ProjectParser
         private static Compilation CreateTestCompilation()//JsonClass para la creacion de los árboles de sintaxis
         {
             FolderBrowserDialog entrada = new FolderBrowserDialog();
-            entrada.SelectedPath = @"C:\Users\Administrador\Documents\repos\roslyn";
-            //entrada.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\Ejemplo";
+            //entrada.SelectedPath = @"C:\Users\Administrador\Documents\repos\roslyn";
+            entrada.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\Ejemplo";
             //entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
             //entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
             entrada.Description = @"Input folder";
@@ -853,6 +936,7 @@ namespace ProjectParser
                 count++;
             }
             Console.WriteLine("Count: " + count.ToString() + ", Max: " + maxLen.ToString() + ", Avg: " + (avgLen / count).ToString());
+            Console.Read();
             */
         }
 
@@ -890,14 +974,15 @@ namespace ProjectParser
 
                 if (P.Count > 0 && P.Peek().Id == n.Id)
                 {
-                    P.Peek().SccId = JsonProject.Nextid++;
+                    P.Peek().SccId = P.Peek().Id;
                     P.Pop();
                 }
                 else
                 {
                     JsonMethod o, scc;
 
-                    scc = new JsonMethod(JsonProject.Nextid, "SCC" + JsonProject.Nextid++);
+                    scc = new JsonMethod(JsonProject.Nextid, "SCC" + JsonProject.Nextid);
+                    JsonProject.Nextid++;
                     scc.SccId = scc.Id;
                     scc.IsMethod = false;
                     scc.IsScc = true;
@@ -912,13 +997,23 @@ namespace ProjectParser
                         o.IsCollapsed = true;
 
                         scc.SccMethods.Add(o);
-                        scc.Calls.UnionWith(o.Calls);
-                        scc.CalledBy.UnionWith(o.CalledBy);
+                        scc.Calls.AddRange(o.Calls);
+                        scc.CalledBy.AddRange(o.CalledBy);
+
+                        //JsonMethod.count_gabow_methods++;
 
                     } while (P.Count > 0 && o.Id != n.Id);
 
-                    scc.Calls.RemoveWhere(c => c.Method.SccId == scc.SccId);
-                    scc.CalledBy.RemoveWhere(c => c.Method.SccId == scc.SccId);
+                    //JsonMethod.count_gabow_calls += scc.Calls.FindAll(c => c.Method.SccId == scc.SccId).Count();
+                    //JsonMethod.count_gabow_calls += scc.CalledBy.FindAll(c => c.Method.SccId == scc.SccId).Count();
+
+                    // Remove self references
+                    scc.Calls.RemoveAll(c => c.Method.SccId == scc.SccId);
+                    scc.CalledBy.RemoveAll(c => c.Method.SccId == scc.SccId);
+
+                    // Remove duplicate references
+                    scc.Calls = scc.Calls.Distinct().ToList();
+                    scc.CalledBy = scc.CalledBy.Distinct().ToList();
                 }
             }
         }
@@ -1035,8 +1130,8 @@ namespace ProjectParser
             foreach (KeyValuePair<string, JsonMethod> entry in JsonMethod.Methods)
             {
                 JsonMethod m = entry.Value;
-                String x = String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0},{5},{6},{7}", project.Name, m.Id, m.Name, m.ClassId, m.NamespaceId, m.AmountLines, m.CyclomaticComplexity, m.Constant);
-                methodsSW.WriteLine(String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0},{5},{6},{7}", project.Name, m.Id, m.Name, m.ClassId, m.NamespaceId, m.AmountLines, m.CyclomaticComplexity, m.Constant));
+                String x = String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0},{5},{6},{7}", project.Name, m.Id, m.Name, m.ClassId, m.NamespaceId, m.Loc, m.Cyc, m.Kon);
+                methodsSW.WriteLine(String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0},{5},{6},{7}", project.Name, m.Id, m.Name, m.ClassId, m.NamespaceId, m.Loc, m.Cyc, m.Kon));
 
                 foreach (JsonCall c in m.Calls)
                 {

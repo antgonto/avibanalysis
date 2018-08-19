@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace ProjectParser
 {
     [JsonObject(MemberSerialization.OptIn, Description = "Method")]
-    class JsonCall : IEquatable<JsonCall>, ICloneable
+    public class JsonCall : IEquatable<JsonCall>, ICloneable
     {
         long id;
         string name;

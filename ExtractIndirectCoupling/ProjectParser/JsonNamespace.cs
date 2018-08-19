@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace ProjectParser
 {
     [JsonObject(MemberSerialization.OptIn, Description = "Namespace")]
-    class JsonNamespace : IEquatable<JsonNamespace>
+    public class JsonNamespace : IEquatable<JsonNamespace>
     {
         static Dictionary<string, JsonNamespace> namespaces = new Dictionary<string, JsonNamespace>();
         static JsonProject project;

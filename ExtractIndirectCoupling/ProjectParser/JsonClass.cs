@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace ProjectParser
 {
     [JsonObject(MemberSerialization.OptIn, Description = "Class")]
-    class JsonClass
+    public class JsonClass
     {
         static Dictionary<string, JsonClass> classes = new Dictionary<string, JsonClass>();
         long id;

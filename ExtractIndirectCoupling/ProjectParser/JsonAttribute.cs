@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace ProjectParser
 {
     [JsonObject(MemberSerialization.OptIn, Description = "Attribute")]
-    class JsonAttribute
+    public class JsonAttribute
     {
         long id;
         string name;
