@@ -7,7 +7,7 @@ package clonefinder;
 
 import java.util.*;
 /**
- *
+ * Clase usada para almacenar la matriz de alineamiento
  * @author Juan
  */
 public class MatrizAlineamiento {
@@ -51,4 +51,6 @@ public class MatrizAlineamiento {
         return false;
         
     }
+    
+    
 }

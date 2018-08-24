@@ -16,27 +16,43 @@ public class CloneFinder {
      */
     
     /*
+    HECHO
+    -matriz
+    -maxima subsecuencia local
+    --con varios puntos de partida
+    -ver https://www.slideshare.net/avrilcoghlan/the-smith-waterman-algorithm
     TODO
-    ya se tiene la matriz, que funciona adecuadamente y se pueden establecer los coeficientes
-    de match, mismatch y gap. ahora se debe proceder a encotnrar la subsecuencia local mas grnde, para 
-    esto hay que almacenar el punto de la matriz donde esta el maximo valor (ver https://www.slideshare.net/avrilcoghlan/the-smith-waterman-algorithm)
-    despues de esto se debe crear una funcion para sacar el texto de las funciones de java, podria hacerse con una pila de {}, y todo
-    el texto que esta entre {} de segundo nivel es texto de una funcion. 
-    conretamente
-    -sacar texto de funciones
-    -obtener la subsecuencia local matcheante mas grande
-    
+    -sacar funciones de archivos
+    -maxima subsecuencia local cuando hay dos posibilidades de divergencia
+    -documentacion
+    -interpretacion de resultados
     */
     public static void main(String[] args) {
         // TODO code application logic here
-        String tira1="TCAGTTGCC";
-        String tira2="AGGTTG";
-        SmithWaterman.setMatch(1);
-        SmithWaterman.setMismatch(-2);
-        SmithWaterman.setGap(-2);
-        SmithWaterman.printear();
-        MatrizAlineamiento m=SmithWaterman.construirMatriz(tira1, tira2);
-        m.prettyPrint();
+        String an1="if numero==0:\n" +
+"        return \"Numero neutro\"\n" +
+"    else:\n" +
+"        if numero%2==0:\n" +
+"            return \"El numero es par\"\n" +
+"        else:\n" +
+"            return \"El numero es impar\"";
+        String an2="if year>=2000:\n" +
+"        if year%4==0:\n" +
+"            return True\n" +
+"        else:\n" +
+"            return False\n" +
+"    else:\n" +
+"        return \"ERROR EN EL ANO\"";
+        String tira1="GGCTCAATCA";
+        String tira2="ACCTAAGG";
+        SmithWaterman sm=new SmithWaterman();
+        sm.setMatch(2);
+        sm.setMismatch(-1);
+        sm.setGap(-2);
+        sm.printear();
+        sm.construirMatriz(tira1, tira2);
+        sm.prettyPrint();
+        sm.obtenerAlineamientos();
     }
     
 }
