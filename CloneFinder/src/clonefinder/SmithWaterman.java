@@ -27,10 +27,10 @@ public class SmithWaterman {
   
     /**
      * Funcion de ayuda que retorna el maximo de 3 valores
-     * @param a
+     * @param a 
      * @param b
      * @param c
-     * @return 
+     * @return retorna el maximo de los argumentos que se le pasan
      */
     private int maximo(int a, int b, int c){
         int d=0;
@@ -134,7 +134,7 @@ public class SmithWaterman {
     
     /**
      * Retorna la matriz de alineamiento
-     * @return 
+     * @return el objeto que contiene la matriz de alineamiento
      */
     public MatrizAlineamiento getMatriz(){
         return m;
@@ -169,16 +169,15 @@ public class SmithWaterman {
     }
     /**
      * Se usa en el traceback de smith-waterman
-     * Retorna el valor de la casilla a la izquierda de la que se analiza
      * @param i la posicion en x de la casilla que se esta analizando
      * @param j la posicion en y de la casilla que se esta analizando
-     * @return 
+     * @return el valor de la casilla a la izquierda de la que se analiza
      */
     private int getIzquierda(int i, int j){
         return m.getIJ(i, j-1)+GAP;
     }
     /**
-     * Retorna la subsecuencia local mas grande a partir de una posicion
+     * la subsecuencia local mas grande a partir de una posicion en el objeto ds que se le pasa en los argumentos
      * Usa recursividad de cola
      * @param i
      * @param j

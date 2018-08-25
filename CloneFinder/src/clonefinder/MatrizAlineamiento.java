@@ -24,28 +24,58 @@ public class MatrizAlineamiento {
         }
     }
     
-    //retorna el elemento i,j en la matriz de alineamiento
+    /**
+     * 
+     * @param i
+     * @param j
+     * @return el elemento en la posicion i,j de la matriz
+     */
     public int getIJ(int i, int j){
         return matriz.get(i).getJ(j);
     }
     
+    /**
+     * Imprime la matriz de forma bonita
+     * Invoca el metodo prettyPrint de las filas
+     */
     public void prettyPrint(){
         for(int i=0;i<matriz.size();i++){
             matriz.get(i).prettyPrint(PADDING);
         }
     }
     
+    /**
+     * 
+     * @return retorna el numero de filas
+     */
     public int getFilas(){
         return matriz.size();
     }
+    
+    /**
+     * 
+     * @return el numero de columnas
+     */
     public int getColumnas(){
         return matriz.get(0).getColumnas();
     }
     
+    /**
+     * establece el valor de la posicion i,j en la matriz
+     * @param valor
+     * @param i
+     * @param j 
+     */
     public void setIJ(int valor, int i, int j){
         matriz.get(i).setJ(j, valor);
     }
     
+    /**
+     * Obtiene el valor de sigma usado en el algoritmo smith-waterman
+     * @param i
+     * @param j
+     * @return el valor de sigma
+     */
     public boolean getSigma(int i, int j){
         if(tira1.charAt(j-1)==tira2.charAt(i-1))return true;
         return false;
