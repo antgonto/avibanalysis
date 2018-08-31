@@ -281,8 +281,6 @@ namespace ProjectParser
                 timer.Stop();
                 Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
 
-                //SaveNeo4JGraph(project);
-
                 //connectNeo4J(project, salida.SelectedPath);
 
                 Console.Write("Collapsing SCCs...");
@@ -300,6 +298,12 @@ namespace ProjectParser
                 Console.Write("Collecting PDG Metrics using Dfs...");
                 timer.Reset(); timer.Start();
                 JsonMethod.CollectMetricsUsingDfs();
+                timer.Stop();
+                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+
+                Console.Write("Saving graph with metrics in neo4j...");
+                timer.Reset(); timer.Start();
+                SaveNeo4JGraph(project);
                 timer.Stop();
                 Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
 
@@ -361,10 +365,8 @@ namespace ProjectParser
                 timer.Stop();
                 Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
 
-                Console.Read();
 
-
-
+                /*
                 JsonSerializer serializer = new JsonSerializer();
 
                 using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
@@ -373,7 +375,11 @@ namespace ProjectParser
                     serializer.Formatting = Formatting.Indented;
                     serializer.Serialize(writer, project);
                 }
+                */
             }
+
+            Console.WriteLine("Process finished successfully!");
+            Console.Read();
 
         }
 
@@ -1068,16 +1074,57 @@ namespace ProjectParser
                                                         MERGE (p:Project { id: f[4] })
                                                         MERGE (n:Namespace { id: f[3] })
                                                         MERGE (c:Class { id: f[2] })
-                                                        CREATE (m:Method { id: f[0], name: f[1], lines: f[5], cyclomatic: f[6], constant: f[7] })
+                                                        CREATE (m:Method { id: f[0], name: f[1], 
+                                                            lines:   toInt(f[ 5]), cyclomatic: toInt(f[6]),  constant: toInt(f[7]),
+                                                            icrlmin: toInt(f[ 8]),    icrlmax: toInt(f[9]),  icrlavg: toInt(f[10]), icrlsum: toInt(f[11]),
+                                                            icflmin: toInt(f[12]),    icflmax: toInt(f[13]), icflavg: toInt(f[14]), icflsum: toInt(f[15]),
+                                                            icrcmin: toInt(f[16]),    icrcmax: toInt(f[17]), icrcavg: toInt(f[18]), icrcsum: toInt(f[19]),
+                                                            icfcmin: toInt(f[20]),    icfcmax: toInt(f[21]), icfcavg: toInt(f[22]), icfcsum: toInt(f[23]),
+                                                            icrkmin: toInt(f[24]),    icrkmax: toInt(f[25]), icrkavg: toInt(f[26]), icrksum: toInt(f[27]),
+                                                            icfkmin: toInt(f[28]),    icfkmax: toInt(f[29]), icfkavg: toInt(f[30]), icfksum: toInt(f[31]),
+                                                            ismethod: toInt(f[31]),   iscollapsed: toInt(f[32]), isrecursive: toInt(f[33])
+                                                         })
                                                         CREATE (p)-[:HAS_METHOD]->(m)
                                                         CREATE (n)-[:CONTAINS_METHOD]->(m)
                                                         CREATE (c)-[:OWNS_METHOD]->(m)"));
+                session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///sccs.csv"" as f
+                                                        MERGE (p:Project { id: f[4] })
+                                                        CREATE (m:Method { id: f[0], name: f[1], 
+                                                            lines:   toInt(f[ 5]), cyclomatic: toInt(f[6]),  constant: toInt(f[7]),
+                                                            icrlmin: toInt(f[ 8]),    icrlmax: toInt(f[9]),  icrlavg: toInt(f[10]), icrlsum: toInt(f[11]),
+                                                            icflmin: toInt(f[12]),    icflmax: toInt(f[13]), icflavg: toInt(f[14]), icflsum: toInt(f[15]),
+                                                            icrcmin: toInt(f[16]),    icrcmax: toInt(f[17]), icrcavg: toInt(f[18]), icrcsum: toInt(f[19]),
+                                                            icfcmin: toInt(f[20]),    icfcmax: toInt(f[21]), icfcavg: toInt(f[22]), icfcsum: toInt(f[23]),
+                                                            icrkmin: toInt(f[24]),    icrkmax: toInt(f[25]), icrkavg: toInt(f[26]), icrksum: toInt(f[27]),
+                                                            icfkmin: toInt(f[28]),    icfkmax: toInt(f[29]), icfkavg: toInt(f[30]), icfksum: toInt(f[31]),
+                                                            ismethod: toInt(f[31]),   iscollapsed: toInt(f[32]), isrecursive: toInt(f[33])
+                                                         })
+                                                        CREATE (p)-[:HAS_METHOD]->(m)"));
                 session.WriteTransaction(tx => tx.Run(@"CREATE CONSTRAINT ON (m:Method) ASSERT m.id IS UNIQUE"));
 
                 session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///calls.csv"" as f
                                                         MERGE (m1:Method { id: f[0] })
                                                         MERGE (m2:Method { id: f[1] })
                                                         CREATE (m1)-[:CALLS]->(m2)"));
+
+                session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///scccalls.csv"" as f
+                                                        MERGE (m1:Method { id: f[0] })
+                                                        MERGE (m2:Method { id: f[1] })
+                                                        CREATE (m1)-[:CALLS]->(m2)"));
+
+                session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///collapses.csv"" as f
+                                                        MERGE (m1:Method { id: f[0] })
+                                                        MERGE (m2:Method { id: f[1] })
+                                                        CREATE (m1)-[:COLLAPSES]->(m2)"));
+
+                session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///ics.csv"" as f
+                                                        MERGE (m1:Method { id: f[0] })
+                                                        MERGE (m2:Method { id: f[1] })
+                                                        CREATE (m1)-[:ICS { 
+                                                            icslmin: toInt(f[ 2]), icslmax: toInt(f[ 3]), icslavg: toInt(f[ 4]), icslsum: toInt(f[ 5]),
+                                                            icscmin: toInt(f[ 6]), icscmax: toInt(f[ 7]), icscavg: toInt(f[ 8]), icscsum: toInt(f[ 9]),
+                                                            icskmin: toInt(f[10]), icskmax: toInt(f[11]), icskavg: toInt(f[12]), icsksum: toInt(f[13])
+                                                        }]->(m2)"));
 
                 session.WriteTransaction(tx => tx.Run(@"DROP CONSTRAINT ON (p:Project) ASSERT p.id IS UNIQUE"));
                 session.WriteTransaction(tx => tx.Run(@"DROP CONSTRAINT ON (n:Namespace) ASSERT n.id IS UNIQUE"));
@@ -1096,7 +1143,11 @@ namespace ProjectParser
             System.IO.StreamWriter hierarchySW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"hierarchy.csv"), false);
             System.IO.StreamWriter classesSW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"classes.csv"), false);
             System.IO.StreamWriter methodsSW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"methods.csv"), false);
+            System.IO.StreamWriter sccsSW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"sccs.csv"), false);
             System.IO.StreamWriter callsSW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"calls.csv"), false);
+            System.IO.StreamWriter scccallsSW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"scccalls.csv"), false);
+            System.IO.StreamWriter collapsesSW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"collapses.csv"), false);
+            System.IO.StreamWriter icsSW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"ics.csv"), false);
 
             projectSW.WriteLine(String.Format(@"{0}", project.Name));
             projectSW.Flush();
@@ -1131,12 +1182,47 @@ namespace ProjectParser
             foreach (KeyValuePair<string, JsonMethod> entry in JsonMethod.Methods)
             {
                 JsonMethod m = entry.Value;
-                String x = String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0},{5},{6},{7}", project.Name, m.Id, m.Name, m.ClassId, m.NamespaceId, m.Loc, m.Cyc, m.Kon);
-                methodsSW.WriteLine(String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0},{5},{6},{7}", project.Name, m.Id, m.Name, m.ClassId, m.NamespaceId, m.Loc, m.Cyc, m.Kon));
+                methodsSW.WriteLine(String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0},{5},{6},{7}," +
+                    " {8}, {9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19}," +
+                    "{20},{21},{22},{23},{24},{25},{26},{27},{28},{29},{30},{31}" +
+                    "{32},{33},{34}", 
+                    project.Name, m.Id, m.Fullname, m.ClassId, m.NamespaceId, m.Loc, m.Cyc, m.Kon,
+                    m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fsum,
+                    m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bsum,
+                    m.Cyc_metrics.Fmin, m.Cyc_metrics.Fmax, m.Cyc_metrics.Favg, m.Cyc_metrics.Fsum,
+                    m.Cyc_metrics.Bmin, m.Cyc_metrics.Bmax, m.Cyc_metrics.Bavg, m.Cyc_metrics.Bsum,
+                    m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fsum,
+                    m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bsum,
+                    m.IsMethod?"1":"0", m.IsCollapsed?"1":"0", m.IsRecursive?"1":"0"));
 
                 foreach (JsonCall c in m.Calls)
                 {
                     callsSW.WriteLine(String.Format(@"{0}{1},{0}{2}", project.Name, m.Id, c.Id));
+                }
+            }
+
+            foreach (JsonMethod m in JsonMethod.SccList)
+            {
+                sccsSW.WriteLine(String.Format(@"{0}{1},{2},{3},{4},{0},{5},{6},{7}," +
+                    " {8}, {9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19}," +
+                    "{20},{21},{22},{23},{24},{25},{26},{27},{28},{29},{30},{31}" +
+                    "{32},{33},{34}",
+                    project.Name, m.Id, m.Fullname, "", "", m.Loc, m.Cyc, m.Kon,
+                    m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fsum,
+                    m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bsum,
+                    m.Cyc_metrics.Fmin, m.Cyc_metrics.Fmax, m.Cyc_metrics.Favg, m.Cyc_metrics.Fsum,
+                    m.Cyc_metrics.Bmin, m.Cyc_metrics.Bmax, m.Cyc_metrics.Bavg, m.Cyc_metrics.Bsum,
+                    m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fsum,
+                    m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bsum,
+                    m.IsMethod ? "1" : "0", m.IsCollapsed ? "1" : "0", m.IsRecursive ? "1" : "0"));
+
+                foreach (JsonCall c in m.Calls)
+                {
+                    scccallsSW.WriteLine(String.Format(@"{0}{1},{0}{2}", project.Name, m.Id, c.Id));
+                }
+                foreach (JsonMethod d in m.SccMethods)
+                {
+                    collapsesSW.WriteLine(String.Format(@"{0}{1},{0}{2}", project.Name, m.Id, d.Id));
                 }
             }
             methodsSW.Flush();
@@ -1145,6 +1231,30 @@ namespace ProjectParser
             callsSW.Flush();
             callsSW.Close();
             callsSW.Dispose();
+            sccsSW.Flush();
+            sccsSW.Close();
+            sccsSW.Dispose();
+            scccallsSW.Flush();
+            scccallsSW.Close();
+            scccallsSW.Dispose();
+            collapsesSW.Flush();
+            collapsesSW.Close();
+            collapsesSW.Dispose();
+
+            for (int m1 = 0; m1 < JsonMethod.MaxMethods; m1++)
+                for (int m2 = 0; m2 < JsonMethod.MaxMethods; m2++)
+                    if (m1 != m2 && JsonMethod.PairMetricsList.IsCellPresent(m1, m2))
+                    {
+                        PairMetrics pair = JsonMethod.PairMetricsList[m1, m2];
+                        icsSW.WriteLine(String.Format(@"{0}{1},{0}{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},{13},{14}",
+                            project.Name, m1, m2,
+                            pair.L.Fmin, pair.L.Fmax, pair.L.Favg, pair.L.Fsum,
+                            pair.C.Fmin, pair.C.Fmax, pair.C.Favg, pair.C.Fsum,
+                            pair.K.Fmin, pair.K.Fmax, pair.K.Favg, pair.K.Fsum));
+                    }
+            icsSW.Flush();
+            icsSW.Close();
+            icsSW.Dispose();
         }
 
         private static void SaveNamespacesCSV(string projectName, List<JsonNamespace> childNamespaces, System.IO.StreamWriter namespacesSW, System.IO.StreamWriter hierarchySW)

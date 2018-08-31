@@ -385,7 +385,7 @@ namespace ProjectParser
 
             List<Tuple<JsonMethod, JsonMethod>> pairList = new List<Tuple<JsonMethod, JsonMethod>>();
             foreach (JsonMethod m1 in allList)
-                foreach (JsonMethod m2 in allList)
+                foreach (JsonMethod m2 in allList)  
                     if (m1.Id != m2.Id && m1.IsCollapsed == false && m2.IsCollapsed == false)
                         pairList.Add(new Tuple<JsonMethod, JsonMethod>(m1, m2));
 
@@ -498,6 +498,11 @@ namespace ProjectParser
                 methodChains[cidx, m.Id] = link;
 
                 methodChainPairs[chainId, m.Id] = midx;
+            }
+
+            if (chainId % 2000000000 == 0)
+            {
+                Console.WriteLine("Chains: " + chainId);
             }
         }
 
@@ -1120,5 +1125,6 @@ namespace ProjectParser
         public Dictionary<int, Dictionary<int, List<ForwardMetrics>>> SccForward { get => sccForward; set => sccForward = value; }
         public Dictionary<int, Dictionary<int, List<BackwardMetrics>>> SccBackward { get => sccBackward; set => sccBackward = value; }
         internal static SparseMatrix<PairMetrics> PairMetricsList { get => pairMetricsList; set => pairMetricsList = value; }
+        public static int MaxMethods { get => maxMethods; set => maxMethods = value; }
     }
 }
