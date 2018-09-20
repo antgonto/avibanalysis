@@ -32,6 +32,7 @@ namespace ProjectParser
 
             return cantIf + cantWhile + cantFor + cantForEach + cantCase + cantDefault + cantDoWhile + 1;
         }
+        static int cantidadClases = 0;
 
         [STAThread]
         public static void Main(string[] args)
@@ -105,8 +106,10 @@ namespace ProjectParser
         private static void ExtractGraphFromAST(JsonProject project, Compilation myCompilation, string path)
         {
             Dictionary<string, JsonMethod> nodoNamespacesNeo4J = new Dictionary<string, JsonMethod>();
+            bool debug = false;
             // Send output to a file
-            System.IO.StreamWriter output = new System.IO.StreamWriter(@"" + path + @"\graph_info.txt");
+            System.IO.StreamWriter output = null;
+            if (debug) output = new System.IO.StreamWriter(@"" + path + @"\graph_info.txt");
 
             List<SemanticModel> semanticModels = new List<SemanticModel>();
             List<SyntaxNode> roots = new List<SyntaxNode>();
@@ -123,7 +126,7 @@ namespace ProjectParser
             List<FieldDeclarationSyntax> fieldDeclaration;
             List<InvocationExpressionSyntax> invocationExpressionSyntax;
 
-            output.WriteLine("\n\nLista de Metodos:\n----------------------------------------------------------------\n\n");
+            if (debug) output.WriteLine("\n\nLista de Metodos:\n----------------------------------------------------------------\n\n");
 
             for (int i = 0; i < semanticModels.Count; i++)
             {
@@ -150,7 +153,8 @@ namespace ProjectParser
                         cyclomatic = 1;
 
                     }
-                        SyntaxNode classDec = FindClass(declaracionDeMetodoActual);
+
+                    SyntaxNode classDec = FindClass(declaracionDeMetodoActual);
                     NamespaceDeclarationSyntax namespaceDec = FindNamespace(classDec);
 
                     if (classDec != null && namespaceDec != null)
@@ -163,13 +167,14 @@ namespace ProjectParser
                             1,
                             cyclomatic);
 
-                        output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-15} {4,-15} {5,-15}",
+                        if (debug) output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-15} {4,-15} {5,-15}",
                                                        m.Name, m.ClassName, m.NamespaceName, m.Id, m.ClassId, m.NamespaceId));
                     }
                 }
 
                 //Obtengo todas las classes del modelo.
                 classDeclarationSyntax = roots[i].DescendantNodes().OfType<ClassDeclarationSyntax>().ToList();
+                cantidadClases += classDeclarationSyntax.Count;
 
                 //Recorro las classes para obtener sus attributes
                 foreach (ClassDeclarationSyntax claseActual in classDeclarationSyntax)
@@ -195,7 +200,7 @@ namespace ProjectParser
                 }
             }
 
-            output.WriteLine("\n\nLista de Llamadas:\n----------------------------------------------------------------\n\n");
+            if (debug) output.WriteLine("\n\nLista de Llamadas:\n----------------------------------------------------------------\n\n");
 
             for (int i = 0; i < semanticModels.Count; i++)
             {
@@ -217,37 +222,40 @@ namespace ProjectParser
                                 !iSymbol.MethodKind.ToString().Equals("LocalFunction"))
                             {
                                 // 0 search only 
-                                JsonMethod caller = JsonMethod.GetMethod(FindMethodName(methodDec),
-                                    FindClassName(classDec), namespaceDec.Name.ToString(), 0, 0, 0);
+                                JsonMethod caller = JsonMethod.FindMethod(FindMethodName(methodDec),
+                                    FindClassName(classDec), namespaceDec.Name.ToString());
 
                                 string mname = iSymbol.Name;
                                 string cname = iSymbol.ContainingSymbol.Name;
                                 string nname = iSymbol.ContainingNamespace.ToString();
                                 // 0 search only
-                                JsonMethod callee = JsonMethod.GetMethod(mname, cname, nname, 0, 0, 0);
+                                JsonMethod callee = JsonMethod.FindMethod(mname, cname, nname);
 
-                                if (caller.Id == callee.Id)
+                                if (caller != null && callee != null)
                                 {
-                                    caller.IsRecursive = true;
-                                }
-                                else
-                                {
-                                    JsonCall callerEntry = new JsonCall(caller.Id, caller.Name, caller.ClassId, caller.ClassName, caller.NamespaceId, caller.FullNamespaceName, caller);
-                                    JsonCall calleeEntry = new JsonCall(callee.Id, callee.Name, callee.ClassId, callee.ClassName, callee.NamespaceId, callee.FullNamespaceName, callee);
-
-                                    if (!callee.CalledBy.Contains(callerEntry))
+                                    if (caller.Id == callee.Id)
                                     {
-                                        output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-150} {4,-150} {5,-150} {6,-15} {7,-15} {8,-15} {9,-15} {10,-15} {11,-15}",
-                                                                       caller.Name, callee.Name,
-                                                                       caller.ClassName, callee.ClassName,
-                                                                       caller.FullNamespaceName, callee.FullNamespaceName,
-                                                                       caller.Id, callee.Id,
-                                                                       caller.ClassId, callee.ClassId,
-                                                                       caller.NamespaceId, callee.NamespaceId));
+                                        caller.IsRecursive = true;
                                     }
+                                    else
+                                    {
+                                        JsonCall callerEntry = new JsonCall(caller.Id, caller.Name, caller.ClassId, caller.ClassName, caller.NamespaceId, caller.FullNamespaceName, caller);
+                                        JsonCall calleeEntry = new JsonCall(callee.Id, callee.Name, callee.ClassId, callee.ClassName, callee.NamespaceId, callee.FullNamespaceName, callee);
 
-                                    if (!callee.CalledBy.Contains(callerEntry)) callee.CalledBy.Add(callerEntry);
-                                    if (!caller.Calls.Contains(calleeEntry)) caller.Calls.Add(calleeEntry);
+                                        if (!callee.CalledBy.Contains(callerEntry))
+                                        {
+                                            if (debug) output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-150} {4,-150} {5,-150} {6,-15} {7,-15} {8,-15} {9,-15} {10,-15} {11,-15}",
+                                                                           caller.Name, callee.Name,
+                                                                           caller.ClassName, callee.ClassName,
+                                                                           caller.FullNamespaceName, callee.FullNamespaceName,
+                                                                           caller.Id, callee.Id,
+                                                                           caller.ClassId, callee.ClassId,
+                                                                           caller.NamespaceId, callee.NamespaceId));
+                                        }
+
+                                        if (!callee.CalledBy.Contains(callerEntry)) callee.CalledBy.Add(callerEntry);
+                                        if (!caller.Calls.Contains(calleeEntry)) caller.Calls.Add(calleeEntry);
+                                    }
                                 }
                             }
                         }
@@ -255,7 +263,7 @@ namespace ProjectParser
                 }
             }
 
-            output.Flush();
+            if (debug) output.Flush();
         }
 
         [STAThread]
@@ -268,7 +276,7 @@ namespace ProjectParser
 
             FolderBrowserDialog salida = new FolderBrowserDialog();
             salida.Description = @"Output folder";
-            salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
+            salida.SelectedPath = @"C:\Users\jnavas\source\repos\output";
             //salida.SelectedPath = @"C:\Users\Administrador\Documents\GitHub\avibanalysis\ExtractIndirectCoupling\output";
             //salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
             if (salida.ShowDialog() == DialogResult.OK)
@@ -280,8 +288,6 @@ namespace ProjectParser
                 myCompilation = null;
                 timer.Stop();
                 Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-
-                //connectNeo4J(project, salida.SelectedPath);
 
                 Console.Write("Collapsing SCCs...");
                 timer.Reset(); timer.Start();
@@ -307,6 +313,15 @@ namespace ProjectParser
                 timer.Stop();
                 Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
 
+                Console.WriteLine("\n\n");
+                Console.WriteLine("System: " + JsonNamespace.Project.Name);
+                Console.WriteLine("    LOC: " + JsonMethod.totalDeLOC);
+                Console.WriteLine("    Classes: " + cantidadClases);
+                Console.WriteLine("    Methods: " + JsonMethod.cantidadMetodos);
+                Console.WriteLine("    Chains: " + JsonMethod.numOfChains);
+                Console.WriteLine("    Max ChainLen: " + JsonMethod.maxChainLength);
+
+                /*
                 Console.Write("Saving metrics output to metrics.txt...");
                 timer.Reset(); timer.Start();
                 // Send output to a file
@@ -364,7 +379,7 @@ namespace ProjectParser
 
                 timer.Stop();
                 Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-
+                */
 
                 /*
                 JsonSerializer serializer = new JsonSerializer();
@@ -710,7 +725,7 @@ namespace ProjectParser
             FolderBrowserDialog salida = new FolderBrowserDialog();
             System.IO.StreamWriter output;
             //System.IO.StreamWriter output = new System.IO.StreamWriter(@"C:\Users\Steven\Documents\GitHub\AnalizadorDFSMaster\AnalizadorDFS\output.txt");
-            salida.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\output";
+            salida.SelectedPath = @"C:\Users\jnavas\source\repos\output";
 
             if (salida.ShowDialog() == DialogResult.OK)
             {
@@ -859,7 +874,7 @@ namespace ProjectParser
         {
             FolderBrowserDialog entrada = new FolderBrowserDialog();
             //entrada.SelectedPath = @"C:\Users\Administrador\Documents\repos\roslyn";
-            entrada.SelectedPath = @"C:\Users\jnavas\source\repos\avibanalysis\ExtractIndirectCoupling\Ejemplo";
+            entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
             //entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
             //entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
             entrada.Description = @"Input folder";
@@ -1082,7 +1097,7 @@ namespace ProjectParser
                                                             icfcmin: toInt(f[20]),    icfcmax: toInt(f[21]), icfcavg: toInt(f[22]), icfcsum: toInt(f[23]),
                                                             icrkmin: toInt(f[24]),    icrkmax: toInt(f[25]), icrkavg: toInt(f[26]), icrksum: toInt(f[27]),
                                                             icfkmin: toInt(f[28]),    icfkmax: toInt(f[29]), icfkavg: toInt(f[30]), icfksum: toInt(f[31]),
-                                                            ismethod: toInt(f[31]),   iscollapsed: toInt(f[32]), isrecursive: toInt(f[33])
+                                                            ismethod: toInt(f[32]),   iscollapsed: toInt(f[33]), isrecursive: toInt(f[34])
                                                          })
                                                         CREATE (p)-[:HAS_METHOD]->(m)
                                                         CREATE (n)-[:CONTAINS_METHOD]->(m)
@@ -1097,7 +1112,7 @@ namespace ProjectParser
                                                             icfcmin: toInt(f[20]),    icfcmax: toInt(f[21]), icfcavg: toInt(f[22]), icfcsum: toInt(f[23]),
                                                             icrkmin: toInt(f[24]),    icrkmax: toInt(f[25]), icrkavg: toInt(f[26]), icrksum: toInt(f[27]),
                                                             icfkmin: toInt(f[28]),    icfkmax: toInt(f[29]), icfkavg: toInt(f[30]), icfksum: toInt(f[31]),
-                                                            ismethod: toInt(f[31]),   iscollapsed: toInt(f[32]), isrecursive: toInt(f[33])
+                                                            ismethod: toInt(f[32]),   iscollapsed: toInt(f[33]), isrecursive: toInt(f[34])
                                                          })
                                                         CREATE (p)-[:HAS_METHOD]->(m)"));
                 session.WriteTransaction(tx => tx.Run(@"CREATE CONSTRAINT ON (m:Method) ASSERT m.id IS UNIQUE"));
@@ -1120,11 +1135,12 @@ namespace ProjectParser
                 session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///ics.csv"" as f
                                                         MERGE (m1:Method { id: f[0] })
                                                         MERGE (m2:Method { id: f[1] })
-                                                        CREATE (m1)-[:ICS { 
+                                                        CREATE (ics:ICS  { 
                                                             icslmin: toInt(f[ 2]), icslmax: toInt(f[ 3]), icslavg: toInt(f[ 4]), icslsum: toInt(f[ 5]),
                                                             icscmin: toInt(f[ 6]), icscmax: toInt(f[ 7]), icscavg: toInt(f[ 8]), icscsum: toInt(f[ 9]),
                                                             icskmin: toInt(f[10]), icskmax: toInt(f[11]), icskavg: toInt(f[12]), icsksum: toInt(f[13])
-                                                        }]->(m2)"));
+                                                        })
+                                                        CREATE (m1)-[:ICS]->(ics)-[:ICS]->(m2)"));
 
                 session.WriteTransaction(tx => tx.Run(@"DROP CONSTRAINT ON (p:Project) ASSERT p.id IS UNIQUE"));
                 session.WriteTransaction(tx => tx.Run(@"DROP CONSTRAINT ON (n:Namespace) ASSERT n.id IS UNIQUE"));
@@ -1183,8 +1199,8 @@ namespace ProjectParser
             {
                 JsonMethod m = entry.Value;
                 methodsSW.WriteLine(String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0},{5},{6},{7}," +
-                    " {8}, {9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19}," +
-                    "{20},{21},{22},{23},{24},{25},{26},{27},{28},{29},{30},{31}" +
+                    "{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19}," +
+                    "{20},{21},{22},{23},{24},{25},{26},{27},{28},{29},{30},{31}," +
                     "{32},{33},{34}", 
                     project.Name, m.Id, m.Fullname, m.ClassId, m.NamespaceId, m.Loc, m.Cyc, m.Kon,
                     m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fsum,
@@ -1204,8 +1220,8 @@ namespace ProjectParser
             foreach (JsonMethod m in JsonMethod.SccList)
             {
                 sccsSW.WriteLine(String.Format(@"{0}{1},{2},{3},{4},{0},{5},{6},{7}," +
-                    " {8}, {9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19}," +
-                    "{20},{21},{22},{23},{24},{25},{26},{27},{28},{29},{30},{31}" +
+                    "{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19}," +
+                    "{20},{21},{22},{23},{24},{25},{26},{27},{28},{29},{30},{31}," +
                     "{32},{33},{34}",
                     project.Name, m.Id, m.Fullname, "", "", m.Loc, m.Cyc, m.Kon,
                     m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fsum,

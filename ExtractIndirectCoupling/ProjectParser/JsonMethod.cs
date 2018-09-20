@@ -10,6 +10,10 @@ namespace ProjectParser
     [JsonObject(MemberSerialization.OptIn, Description = "Method")]
     public class JsonMethod : IEquatable<JsonMethod>
     {
+        static public int cantidadMetodos = 0;
+        static public int totalDeLOC = 0;
+        static public int numOfChains = 0;
+        static public int maxChainLength = 0;
         static int maxChains = 1000000;
         static int chainsCnt = 0;
         //static int[] chainMethodsCnt;
@@ -98,6 +102,20 @@ namespace ProjectParser
                 method = new JsonMethod(JsonProject.Nextid++, name, c, JsonNamespace.GetNamespace(onamespace), loc, kon, cyc);
                 methods.Add(onamespace + "." + oclass + "." + name, method);
                 c.Methods.Add(method);
+                JsonMethod.cantidadMetodos++;
+                JsonMethod.totalDeLOC += loc;
+            }
+
+            return method;
+        }
+
+        public static JsonMethod FindMethod(string name, string oclass, string onamespace)
+        {
+            JsonMethod method;
+
+            if (!methods.TryGetValue(onamespace + "." + oclass + "." + name, out method))
+            {
+                method = null;
             }
 
             return method;
@@ -381,7 +399,7 @@ namespace ProjectParser
             Parallel.ForEach(startList, m => CollectMetricsUsingDfsThread(m));
 
             // No Sync needed!!!
-            Parallel.ForEach(allList, m => { AvgMetrics(m); SumMetrics(m); });
+           Parallel.ForEach(allList, m => { AvgMetrics(m); SumMetrics(m); });
 
             List<Tuple<JsonMethod, JsonMethod>> pairList = new List<Tuple<JsonMethod, JsonMethod>>();
             foreach (JsonMethod m1 in allList)
@@ -498,11 +516,9 @@ namespace ProjectParser
                 methodChains[cidx, m.Id] = link;
 
                 methodChainPairs[chainId, m.Id] = midx;
-            }
 
-            if (chainId % 2000000000 == 0)
-            {
-                Console.WriteLine("Chains: " + chainId);
+                JsonMethod.numOfChains++;
+                JsonMethod.maxChainLength = Math.Max(JsonMethod.maxChainLength, mCnt);
             }
         }
 
@@ -635,9 +651,9 @@ namespace ProjectParser
                 chId = (int)link.ChainId;
                 for (int midx = 0; midx < chainMethodsCnt[chId]; midx++)
                 {
-                    if (link.MethodIdx < chainMethods[chId, midx].MethodIdx)
-                        forwardSet.Add(chainMethods[chId, midx].Method);
                     if (link.MethodIdx > chainMethods[chId, midx].MethodIdx)
+                        forwardSet.Add(chainMethods[chId, midx].Method);
+                    if (link.MethodIdx < chainMethods[chId, midx].MethodIdx)
                         backwardSet.Add(chainMethods[chId, midx].Method);
                 }
             }
