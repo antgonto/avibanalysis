@@ -16,8 +16,10 @@ import java.util.ArrayList;
  * @author Juan
  */
 public class SmithWaterman {
-    String tira1;
-    String tira2;
+    //String tira1;
+    //String tira2;
+    ListaTokens tokens1;
+    ListaTokens tokens2;
     private int MATCH=2;
     private int MISMATCH=-1;
     private int GAP=-2; 
@@ -44,13 +46,16 @@ public class SmithWaterman {
      * @param tira1 una de las dos tiras que se quieren analizar
      * @param tira2 la otra tira que se quiere analizar
      */
-    public void construirMatriz(String tira1,String tira2){
-        this.tira1=tira1;
-        this.tira2=tira2;
+    public void construirMatriz(/*String tira1,String tira2*/ListaTokens tokens1, ListaTokens tokens2){
+        //this.tira1=tira1;
+        //this.tira2=tira2;
+        this.tokens1=tokens1;
+        this.tokens2=tokens2;
         int valmax=-1;
         maxIs.clear();
         maxJs.clear();
-        m=new MatrizAlineamiento(tira1,tira2);
+        m=new MatrizAlineamiento(tokens1,tokens2);
+        //m=new MatrizAlineamiento(tira1,tira2);
         for(int i=1;i<m.getFilas();i++){
             for(int j=1;j<m.getColumnas();j++){
                 int a=m.getIJ(i-1, j-1);
@@ -189,19 +194,19 @@ public class SmithWaterman {
         int izquierda=getIzquierda(i,j);
         if(arriba==m.getIJ(i, j)){
             ds.appendStringArriba("-");
-            ds.appendStringAbajo(""+tira2.charAt(i-1));
+            ds.appendStringAbajo(""+tokens2.getTexto(i-1));
             if(m.getIJ(i-1, j)==0)return;
             alineamientoEn(i-1,j,ds);
         }
         else if(izquierda==m.getIJ(i, j)){
-            ds.appendStringArriba(""+tira1.charAt(j-1));
+            ds.appendStringArriba(""+tokens1.getTexto(j-1));
             ds.appendStringAbajo("-");
             if(m.getIJ(i, j-1)==0)return;
             alineamientoEn(i,j-1,ds);
         }
         else if(diagonal==m.getIJ(i, j)){
-            ds.appendStringArriba(""+tira1.charAt(j-1));
-            ds.appendStringAbajo(""+tira2.charAt(i-1));
+            ds.appendStringArriba(""+tokens1.getTexto(j-1));
+            ds.appendStringAbajo(""+tokens2.getTexto(i-1));
             if(m.getIJ(i-1, j-1)==0)return;
             alineamientoEn(i-1,j-1,ds);
         }

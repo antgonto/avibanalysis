@@ -12,15 +12,33 @@ import java.util.*;
  */
 public class MatrizAlineamiento {
     private int PADDING=3;
-    String tira1;
-    String tira2;
+    //String tira1;
+    //String tira2;
+    ListaTokens tokens1;
+    ListaTokens tokens2;
     ArrayList<FilaAlineamiento>matriz=new ArrayList<FilaAlineamiento>();
+    
+    /*
     public MatrizAlineamiento(String str1,String str2){
         tira1=str1;
         tira2=str2;
-        //se crea la matriz de tamano str1.length()+1xstr2.length()+1
+        //se crea la matriz de tamano str1.length()+1 X str2.length()+1
         for(int i=0;i<str2.length()+1;i++){
             matriz.add(new FilaAlineamiento(str1.length()));
+        }
+    }
+    */
+    
+    public MatrizAlineamiento(ListaTokens tokens1, ListaTokens tokens2){
+        
+        //tira1=str1;
+        //tira2=str2;
+        this.tokens1=tokens1;
+        this.tokens2=tokens2;
+        
+        //se crea la matriz de tamano str1.length()+1 X str2.length()+1
+        for(int i=0;i<tokens2.getTamano()+1;i++){
+            matriz.add(new FilaAlineamiento(tokens1.getTamano()));
         }
     }
     
@@ -77,9 +95,12 @@ public class MatrizAlineamiento {
      * @return el valor de sigma
      */
     public boolean getSigma(int i, int j){
+        if(tokens1.getToken(j-1)==tokens2.getToken(i-1))return true;
+        return false;
+        /*
         if(tira1.charAt(j-1)==tira2.charAt(i-1))return true;
         return false;
-        
+        */
     }
     
     
