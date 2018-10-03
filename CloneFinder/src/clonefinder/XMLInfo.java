@@ -11,7 +11,9 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 
 /**
- *
+ * Clase que se encarga de retornar informacion del archivo de configuracion
+ * Esta informacion se usa para modificar el comportamiento del algoritmo
+ * La informacion se saca de un archivo .xml
  * @author Juan
  */
 public class XMLInfo {
@@ -21,6 +23,7 @@ public class XMLInfo {
     private DocumentBuilderFactory documentBuilderFactory;
     DocumentBuilder documentBuilder;
     Document document;
+    
     
     public XMLInfo(String archivo){
         try{
