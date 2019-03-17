@@ -6,7 +6,12 @@ using System.Threading.Tasks;
 
 namespace edu.tec.avib
 {
-    class B
+    interface IB
+    {
+      public int metodoB3();
+    }
+
+    class B: IB
     {
         public int numb;
         public int metodoB1()
@@ -28,6 +33,16 @@ namespace edu.tec.avib
             claseC.metodoC1();
             E claseE = new E();
             claseE.metodoE1();
+        }
+
+        public int metodoB3()
+        {
+          return 4;
+        }
+
+        public static int metodoB4()
+        {
+          return 5;
         }
     }
 }

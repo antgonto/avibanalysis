@@ -1,4 +1,7 @@
-﻿using Newtonsoft.Json;
+﻿using MongoDB.Bson;
+using MongoDB.Driver;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,5 +26,17 @@ namespace ProjectParser
         //[JsonProperty]
         public List<List<JsonCall>> Chains { get => chains; set => chains = value; }
         public static int Nextid { get => nextid; set => nextid = value; }
+
+        public dynamic JSerialize()
+        {
+            dynamic project = new JObject();
+            project.ProjectName = Name;
+            project.Namespaces = new JArray();
+            foreach (JsonNamespace n in Namespaces)
+            {
+                project.Namespaces.Add(n.JSerialize());
+            }
+            return project;
+        }
     }
 }

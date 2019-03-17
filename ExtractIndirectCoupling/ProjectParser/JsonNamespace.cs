@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -40,6 +41,26 @@ namespace ProjectParser
         internal List<JsonNamespace> ChildNamespaces { get => childNamespaces; set => childNamespaces = value; }
         [JsonProperty("Classes")]
         public List<JsonClass> Classes { get => classes; set => classes = value; }
+
+        public string CityNamespace { get => name; set => name = value; }
+
+        public dynamic JSerialize()
+        {
+            dynamic ns = new JObject();
+            ns.Name = Name;
+            ns.Fullname = Fullname;
+            ns.Classes = new JArray();
+            foreach (JsonClass c in Classes)
+            {
+                ns.Classes.Add(c.JSerialize());
+            }
+            ns.Namespaces = new JArray();
+            foreach (JsonNamespace n in ChildNamespaces)
+            {
+                ns.Namespaces.Add(n.JSerialize());
+            }
+            return ns;
+        }
 
         public static JsonNamespace GetNamespace(string name)
         {

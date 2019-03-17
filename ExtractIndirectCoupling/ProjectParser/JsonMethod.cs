@@ -1,4 +1,7 @@
-﻿using Newtonsoft.Json;
+﻿using MongoDB.Bson;
+using MongoDB.Driver;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -397,18 +400,21 @@ namespace ProjectParser
 
             // Watch out - Sync needed!!!
             Parallel.ForEach(startList, m => CollectMetricsUsingDfsThread(m));
+            //Parallel.ForEach(startList, new ParallelOptions { MaxDegreeOfParallelism = 32 }, m => CollectMetricsUsingDfsThread(m));
 
             // No Sync needed!!!
-           Parallel.ForEach(allList, m => { AvgMetrics(m); SumMetrics(m); });
+            Parallel.ForEach(allList, m => { AvgMetrics(m); SumMetrics(m); });
+            //Parallel.ForEach(allList, new ParallelOptions { MaxDegreeOfParallelism = 32 }, m => { AvgMetrics(m); SumMetrics(m); });
 
             List<Tuple<JsonMethod, JsonMethod>> pairList = new List<Tuple<JsonMethod, JsonMethod>>();
             foreach (JsonMethod m1 in allList)
-                foreach (JsonMethod m2 in allList)  
+                foreach (JsonMethod m2 in allList)
                     if (m1.Id != m2.Id && m1.IsCollapsed == false && m2.IsCollapsed == false)
                         pairList.Add(new Tuple<JsonMethod, JsonMethod>(m1, m2));
 
             // Watch out - Sync needed!!!
             Parallel.ForEach(pairList, p => { CollectPairMetrics(p); });
+            //Parallel.ForEach(pairList, new ParallelOptions { MaxDegreeOfParallelism = 32 }, p => { CollectPairMetrics(p); });
         }
 
         static void CollectMetricsUsingDfsThread(JsonMethod m)
@@ -808,7 +814,7 @@ namespace ProjectParser
         public static void CollectSccMetricsUsingDFS()
         {
             // TODO: this method needs to be completed, using SUM by now
-            
+
             //MarkSccEntranceAndExit();
 
             foreach (JsonMethod scc in JsonMethod.SccList)
@@ -1012,7 +1018,7 @@ namespace ProjectParser
                 {
                     if (c.Method.DfsFlag == false)
                     {
-                        CountDFS(c.Method, depth+1, ref avgdepth, ref count, project);
+                        CountDFS(c.Method, depth + 1, ref avgdepth, ref count, project);
                     }
                 }
             }
@@ -1117,6 +1123,28 @@ namespace ProjectParser
         public bool DfsFlag { get => dfsFlag; set => dfsFlag = value; }
         public static Dictionary<string, JsonMethod> Methods { get => methods; set => methods = value; }
 
+        public dynamic JSerialize()
+        {
+            dynamic m = new JObject();
+            m.Name = Name;
+            m.Fullname = Fullname;
+            m.Class = ClassName;
+            m.FullClass = FullClassname;
+            m.Namespace = NamespaceName;
+            m.FullNamespace = FullNamespaceName;
+            m.KON = kon;
+            m.LOC = loc;
+            m.CYC = cyc;
+            m.FSUMKON = kon_metrics.Bsum;
+            m.FSUMLOC = loc_metrics.Bsum;
+            m.FSUMCYC = cyc_metrics.Bsum;
+            m.RSUMKON = kon_metrics.Fsum;
+            m.RSUMLOC = loc_metrics.Fsum;
+            m.RSUMCYC = cyc_metrics.Fsum;
+
+            return m;
+        }
+
         // For Gabo's Algorithm
         public bool Visited { get => visited; set => visited = value; }
         public int Pre { get => pre; set => pre = value; }
@@ -1142,5 +1170,456 @@ namespace ProjectParser
         public Dictionary<int, Dictionary<int, List<BackwardMetrics>>> SccBackward { get => sccBackward; set => sccBackward = value; }
         internal static SparseMatrix<PairMetrics> PairMetricsList { get => pairMetricsList; set => pairMetricsList = value; }
         public static int MaxMethods { get => maxMethods; set => maxMethods = value; }
+
+
+
+        static BsonJavaScript map = new BsonJavaScript(@"
+            function() {
+		            var node_key;
+		            var node_value;
+
+		            // retrieve original method
+		            for (var idx = 0; idx < this.value.list.length; idx++) {
+			            item = this.value.list[idx];
+			            if (item.node == true) {
+				            node_key = item.id;
+				            node_value = item;
+				            item.iteration = item.iteration + 1;
+				            break;
+			            }
+		            }
+
+		            var key;
+		            var value;
+
+		            // starting point
+		            if (node_value.hasOwnProperty('unwind')) { 
+
+			            delete node_value['unwind'];
+			            for (var idx = 0; idx < node_value.calls.length; idx++) {
+				            key = node_value.calls[idx];
+				            value = {
+							            id: key,
+							            calls: [node_key],
+							            weight: node_value.weight,
+							            node: false,
+							            iteration: node_value.iteration
+						             };
+				            emit(key, { list: [value] });
+			            }
+		            }
+		            else { // progressive map reduce
+
+			            // accummulate to original method and forward methods
+			            for (var idx = 0; idx < this.value.list.length; idx++) {
+				            item = this.value.list[idx];
+				            if (item.node == false) {
+					            caller_key = item.calls[0];
+					            if (node_value.summed.includes(caller_key) == false) {
+						            node_value.weight += item.weight;
+						            node_value.summed.push(caller_key);
+						            for (var jdx = 0; jdx < node_value.calls.length; jdx++) {
+							            callee_key = node_value.calls[jdx];
+							            value = {
+										            id: callee_key,
+										            calls: [caller_key],
+										            weight: item.weight,
+										            node: false,
+										            iteration: node_value.iteration
+									             };
+							            emit(callee_key, { list: [value] });
+						            }
+					            }
+				            }
+			            }
+		            }
+
+		            // preserve original method with calculated metrics
+		            emit(node_key, { list: [node_value] });
+	            };
+        ");
+
+        static BsonJavaScript reduce = new BsonJavaScript(@"
+            function(key, values) {
+                reduced_value = { list:[] };
+                for (var idx = 0; idx < values.length; idx++)
+                    for (var jdx = 0; jdx < values[idx].list.length; jdx++)
+                        reduced_value.list.push(values[idx].list[jdx]);
+                return reduced_value;
+            };
+        ");
+
+        static BsonJavaScript finalize = new BsonJavaScript(@"
+	        function (key, reduced_value) {
+               return reduced_value;
+            };
+        ");
+
+
+        static BsonJavaScript mapChains = new BsonJavaScript(@"
+	        function() {
+
+		        var item = this.value;
+
+		        if (item.type == 'Node') {
+
+			        if (item.forward == true) {
+				
+				        item.forward = false;
+
+				        for (var idx = 0; idx < item.to.length; idx++) {
+					        var to = item.to[idx];
+					        emit(to, { type: 'Path',
+						               chains: [
+						       		        {
+						       			        to: to,
+						       			        methods: [ { method: item.from, weight: item.weight, forward: item.weight }],
+						       			        weight: item.weight,
+						       			        count: 1
+						       		        }
+						               ] });
+				        }
+			        }
+
+			        emit('N-'+item.from, item); // preserve the node
+
+			        item.type = 'Chain';
+			        item.chains = [];
+			        emit(item.from, item);      // and create first paths
+		        }
+		        else if (item.type == 'Chain') { // emit links
+			        if (item.forward == true) {
+				        var to = item.chains[0].to;
+				        var chains = [];
+
+				        for (var idx = 0; idx < item.chains.length; idx++) {
+					        chain = item.chains[idx];
+					        if (chain.to == to) {
+						        chains.push(chain);
+					        }
+					        else {
+						        emit(to, { type: 'Path', chains: chains });
+						        to = chain.to;
+						        chains = [ chain ];
+					        }
+				        }
+				        emit(to, { type: 'Path', chains: chains });
+			        }
+			        else {
+				        // Just forward chain
+				        emit(item.key, item);
+			        }
+		        }
+		        else if (item.type == 'FinalChain') {
+			        emit(item.key, item);
+		        }
+	        }
+        ");
+
+        static BsonJavaScript reduceChains = new BsonJavaScript(@"
+	        function(key, values) {
+
+		        var node_value;
+		        var found = false;
+
+		        // retrieve chain node
+		        for (var idx = 0; idx < values.length; idx++) {
+			        item = values[idx];
+
+			        if (item.type == 'Chain') {
+				        node_value = item;
+				        node_value.forward = false;
+				        found = true;
+				        break;
+			        }
+
+			        // if not found, it will on a later partial reduce action !!!
+		        }
+
+		        var chains = [];
+
+		        // retrieve chain links
+		        if (found) {
+			        for (var idx = 0; idx < values.length; idx++) {
+				        item = values[idx];
+
+				        if (item.type == 'Path') {
+					        for (var jdx = 0; jdx < item.chains.length; jdx++) {
+						        chain = item.chains[jdx];
+						        forward_value = node_value.weight + chain.methods[chain.methods.length-1].forward;
+						        chain.methods.push({ method: node_value.from, weight: node_value.weight, forward: forward_value });
+						        chain.weight += node_value.weight;
+						        chain.count++;
+						        chains.push(chain);
+					        }
+				        }
+			        }
+			        if (chains.length > 0) {
+				        if (node_value.to.length > 0) {
+					        for (var jdx = 0; jdx < node_value.to.length; jdx++) {
+						        for (var idx = 0; idx < chains.length; idx++) {
+							        chain = chains[idx];
+							        chain.to = node_value.to[jdx];
+							        node_value.chains.push(JSON.parse(JSON.stringify(chain)));
+						        }
+					        }
+					        node_value.forward = true;
+				        }
+				        else {
+					        node_value.type = 'FinalChain';
+					        item.key = ObjectId();
+					        node_value.chains = chains;
+				        }
+				        /*
+				        for (var jdx = 0; jdx < node_value.to.length; jdx++) {
+					        for (var idx = 0; idx < chains.length; idx++) {
+						        chain = chains[idx];
+						        chain.to = node_value.to[jdx];
+						        node_value.chains.push(JSON.parse(JSON.stringify(chain)));
+					        }
+				        }
+				        if (node_value.to.length > 0) {
+					        node_value.forward = true;
+				        }*/
+			        }
+		        }
+		        else { // forward to later partial reduce action !!!
+			        for (var idx = 0; idx < values.length; idx++) {
+				        item = values[idx];
+
+				        if (item.type == 'Path') {
+					        for (var jdx = 0; jdx < item.chains.length; jdx++) {
+						        chain = item.chains[jdx];
+						        chains.push(chain);
+					        }
+				        }
+			        }
+			        node_value = { type: 'Path', chains: chains };
+		        }
+
+                return node_value;
+            }
+        ");
+
+
+        public static void MapReduceMetrics(MetricType metric, MagnitudeFunctionType v, WeightFunctionType w)
+        {
+            var client = new MongoClient("mongodb://192.168.100.16:27017");
+            IMongoDatabase database = client.GetDatabase("mapreduce");
+
+            switch (metric)
+            {
+                case MetricType.icr:
+                    {
+                        switch (v)
+                        {
+                            case MagnitudeFunctionType.sum:
+                                {
+                                    switch (w)
+                                    {
+                                        case WeightFunctionType.kon:
+                                            {
+
+                                            }
+                                            break;
+                                        case WeightFunctionType.loc:
+                                            {
+
+                                            }
+                                            break;
+                                        /*
+                                        case WeightFunctionType.cyc:
+                                            {
+                                                //var results = collection.MapReduce<>
+                                                // database.DropCollection("riskiness_sum");
+                                                IMongoCollection<BsonDocument> collection = database.GetCollection<BsonDocument>("riskiness_sum");
+                                                collection.DeleteMany(FilterDefinition<BsonDocument>.Empty);
+
+                                                foreach (KeyValuePair<string, JsonMethod> kv in methods)
+                                                {
+                                                    BsonArray calls = new BsonArray();
+                                                    JsonMethod m = kv.Value;
+                                                    foreach (JsonCall c in m.Calls)
+                                                    {
+                                                        calls.Add(c.Id);
+                                                    }
+                                                    
+                                                    BsonDocument document =
+                                                        new BsonDocument {
+                                                            { "_id", m.Id },
+                                                            { "value", new BsonDocument {
+                                                                { "list", new BsonArray {
+                                                                    new BsonDocument {
+                                                                        { "id", m.Id },
+                                                                        { "name", m.Name },
+                                                                        { "calls", calls },
+                                                                        { "cyc", m.Cyc },
+                                                                        { "weight", m.Cyc },
+                                                                        { "summed", new BsonArray { m.Id } },
+                                                                        { "node", true },
+                                                                        { "iteration", 0 },
+                                                                        { "unwind", true }
+                                                                    }
+                                                                } }
+                                                            } }
+                                                        };
+
+                                                    collection.InsertOne(document);
+                                                }
+                                                
+                                                var options = new MapReduceOptions<BsonDocument, BsonDocument>
+                                                {
+                                                    OutputOptions = MapReduceOutputOptions.Replace("riskiness_sum")
+                                                };
+
+                                                int repeat = 0;
+                                                List<BsonDocument> resultAsBsonDocumentList = null;
+
+                                                do
+                                                {
+                                                    resultAsBsonDocumentList = collection.MapReduce(map, reduce, options).ToList();
+
+                                                    BsonDocument project = new BsonDocument("$project", new BsonDocument("items", new BsonDocument("$size", "$value.list")));
+                                                    BsonDocument match   = new BsonDocument("$match",   new BsonDocument("items", new BsonDocument("$gt",   1)));
+                                                    BsonDocument count   = new BsonDocument("$count",   "items");
+
+                                                    BsonDocument[] stages = { project, match, count };
+
+                                                    try
+                                                    {
+                                                        repeat = collection.Aggregate<BsonDocument>(PipelineDefinition<BsonDocument, BsonDocument>.Create(stages)).Single().GetValue("items").AsInt32;
+                                                    }
+                                                    catch (InvalidOperationException ex)
+                                                    {
+                                                        repeat = 0;
+                                                    }
+                                                } while (repeat > 0);
+                                            }*/
+                                        case WeightFunctionType.cyc:
+                                            {
+                                                //var results = collection.MapReduce<>
+                                                // database.DropCollection("riskiness_sum");
+                                                IMongoCollection<BsonDocument> collection = database.GetCollection<BsonDocument>("chainmetrics");
+                                                collection.DeleteMany(FilterDefinition<BsonDocument>.Empty);
+
+                                                foreach (KeyValuePair<string, JsonMethod> kv in methods)
+                                                {
+                                                    BsonArray calls = new BsonArray();
+                                                    JsonMethod m = kv.Value;
+                                                    foreach (JsonCall c in m.Calls)
+                                                    {
+                                                        calls.Add(c.Id);
+                                                    }
+
+                                                    BsonDocument document =
+                                                        new BsonDocument {
+                                                            { "_id", "N-"+m.Id },
+                                                            { "value", new BsonDocument {
+                                                                { "from", m.Id },
+                                                                { "to", new BsonArray(calls) },
+                                                                { "type", "Node" },
+                                                                { "weight", m.Cyc },
+                                                                { "forward", m.Calls.Count > 0 ? true : false }
+                                                            } }
+                                                        };
+
+                                                    collection.InsertOne(document);
+                                                }
+
+                                                var options = new MapReduceOptions<BsonDocument, BsonDocument>
+                                                {
+                                                    OutputOptions = MapReduceOutputOptions.Replace("chainmetrics")
+                                                };
+
+                                                int repeat = 0;
+                                                List<BsonDocument> resultAsBsonDocumentList = null;
+
+                                                do
+                                                {
+                                                    resultAsBsonDocumentList = collection.MapReduce(mapChains, reduceChains, options).ToList();
+
+                                                    BsonDocument project = new BsonDocument("$project", new BsonDocument("forward", "$value.forward"));
+                                                    BsonDocument match = new BsonDocument("$match", new BsonDocument("forward", true));
+                                                    BsonDocument count = new BsonDocument("$count", "forward");
+
+                                                    BsonDocument[] stages = { project, match, count };
+
+                                                    try
+                                                    {
+                                                        repeat = collection.Aggregate<BsonDocument>(PipelineDefinition<BsonDocument, BsonDocument>.Create(stages)).Single().GetValue("forward").AsInt32;
+
+                                                    }
+                                                    catch (InvalidOperationException ex)
+                                                    {
+                                                        repeat = 0;
+                                                    }
+                                                } while (repeat > 0);
+
+                                                BsonDocument project1 = new BsonDocument("$project", new BsonDocument{ { "_id", 0 }, { "chain", "$value.chains" } } );
+                                                BsonDocument unwind = new BsonDocument("$unwind", "$chain");
+                                                BsonDocument project2 = new BsonDocument("$project", new BsonDocument { { "chain", "$chain.methods" }, { "weight", "$chain.weight" }, { "count", "$chain.count" } }); 
+                                                BsonDocument outs = new BsonDocument("$out", "metrics");
+
+                                                BsonDocument[] stages2 = { project1, unwind, project2, outs };
+
+                                                try
+                                                {
+                                                    repeat = collection.Aggregate<BsonDocument>(PipelineDefinition<BsonDocument, BsonDocument>.Create(stages2)).Single().GetValue("items").AsInt32;
+                                                }
+                                                catch (InvalidOperationException ex)
+                                                {
+                                                    repeat = 0;
+                                                }
+                                            }
+                                            break;
+                                    }
+                                }
+                                break;
+                            case MagnitudeFunctionType.avg:
+                                {
+
+                                }
+                                break;
+                            case MagnitudeFunctionType.min:
+                                {
+
+                                }
+                                break;
+                            case MagnitudeFunctionType.max:
+                                {
+
+                                }
+                                break;
+                        }
+                    }
+                    break;
+                case MetricType.icf:
+                    {
+
+                    }
+                    break;
+                case MetricType.ics:
+                    {
+
+                    }
+                    break;
+            }
+        }
     }
+
+    public enum MetricType
+    {
+        icr, icf, ics
+    }
+
+    public enum MagnitudeFunctionType
+    {
+        sum, avg, min, max
+    }
+
+    public enum WeightFunctionType
+    {
+        kon, loc, cyc
+    }
+
 }

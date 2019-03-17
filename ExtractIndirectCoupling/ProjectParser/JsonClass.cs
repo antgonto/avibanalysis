@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,6 +43,41 @@ namespace ProjectParser
         public List<JsonAttribute> Attributes { get => attributes; set => attributes = value; }
         [JsonProperty("Methods")]
         public List<JsonMethod> Methods { get => methods; set => methods = value; }
+
+        public dynamic JSerialize()
+        {
+            dynamic c = new JObject();
+            c.Name = Name;
+            c.Fullname = Fullname;
+            c.Namespace = FullNamespaceName;
+            c.NOM = 0;
+            c.LOC = 0;
+            c.CYC = 0;
+            c.FSUMKON = 0;
+            c.FSUMLOC = 0;
+            c.FSUMCYC = 0;
+            c.RSUMKON = 0;
+            c.RSUMLOC = 0;
+            c.RSUMCYC = 0;
+            c.Methods = new JArray();
+            foreach (JsonMethod m in Methods)
+            {
+                if (m.IsCollapsed == false)
+                {
+                    c.Methods.Add(m.JSerialize());
+                    c.NOM += m.Kon;
+                    c.LOC += m.Loc;
+                    c.CYC += m.Cyc;
+                    c.FSUMKON += m.Kon_metrics.Bsum;
+                    c.FSUMLOC += m.Loc_metrics.Bsum;
+                    c.FSUMCYC += m.Cyc_metrics.Bsum;
+                    c.RSUMKON += m.Kon_metrics.Fsum;
+                    c.RSUMLOC += m.Loc_metrics.Fsum;
+                    c.RSUMCYC += m.Cyc_metrics.Fsum;
+                }
+            }
+            return c;
+        }
 
         public JsonNamespace GetNamespace { get => onamespace; set => onamespace = value; }
 

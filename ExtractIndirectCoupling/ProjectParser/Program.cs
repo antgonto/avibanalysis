@@ -157,6 +157,8 @@ namespace ProjectParser
                     SyntaxNode classDec = FindClass(declaracionDeMetodoActual);
                     NamespaceDeclarationSyntax namespaceDec = FindNamespace(classDec);
 
+                    // TODO: Add default namespace when null everywhere
+
                     if (classDec != null && namespaceDec != null)
                     {
                         JsonMethod m = JsonMethod.GetMethod(
@@ -272,7 +274,11 @@ namespace ProjectParser
             JsonProject project = new JsonProject();
             JsonNamespace.Project = project;
 
-            Compilation myCompilation = CreateTestCompilation();//Llama a la clase para crear la lista de archivos
+            bool loadNeo4jOnly = false;
+
+            Compilation myCompilation = null;
+            if (loadNeo4jOnly == false)
+                myCompilation = CreateTestCompilation();//Llama a la clase para crear la lista de archivos
 
             FolderBrowserDialog salida = new FolderBrowserDialog();
             salida.Description = @"Output folder";
@@ -281,31 +287,42 @@ namespace ProjectParser
             //salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
             if (salida.ShowDialog() == DialogResult.OK)
             {
+
                 Stopwatch timer = new Stopwatch();
-                Console.Write("Loading ASTs...");
-                timer.Start();
-                ExtractGraphFromAST(project, myCompilation, salida.SelectedPath);
-                myCompilation = null;
-                timer.Stop();
-                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+                if (loadNeo4jOnly == false)
+                {
+                    Console.Write("Loading ASTs...");
+                    timer.Start();
+                    ExtractGraphFromAST(project, myCompilation, salida.SelectedPath);
+                    myCompilation = null;
+                    timer.Stop();
+                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
 
-                Console.Write("Collapsing SCCs...");
-                timer.Reset(); timer.Start();
-                CollapseGraphSCC();
-                timer.Stop();
-                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+                    Console.Write("Collapsing SCCs...");
+                    timer.Reset(); timer.Start();
+                    CollapseGraphSCC();
+                    timer.Stop();
+                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
 
-                Console.Write("Collecting SCC Metrics using DFS...");
-                timer.Reset(); timer.Start();
-                JsonMethod.CollectSccMetricsUsingDFS();
-                timer.Stop();
-                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+                    Console.Write("Collecting SCC Metrics using DFS...");
+                    timer.Reset(); timer.Start();
+                    JsonMethod.CollectSccMetricsUsingDFS();
+                    timer.Stop();
+                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
 
-                Console.Write("Collecting PDG Metrics using Dfs...");
-                timer.Reset(); timer.Start();
-                JsonMethod.CollectMetricsUsingDfs();
-                timer.Stop();
-                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+                    Console.WriteLine("\n\n");
+                    Console.WriteLine("System: " + JsonNamespace.Project.Name);
+                    Console.WriteLine("    LOC: " + JsonMethod.totalDeLOC);
+                    Console.WriteLine("    Classes: " + cantidadClases);
+                    Console.WriteLine("    Methods: " + JsonMethod.cantidadMetodos);
+                    Console.WriteLine("\n\n");
+
+                    Console.Write("Collecting PDG Metrics using Dfs...");
+                    timer.Reset(); timer.Start();
+                    JsonMethod.CollectMetricsUsingDfs();
+                    timer.Stop();
+                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+                }
 
                 Console.Write("Saving graph with metrics in neo4j...");
                 timer.Reset(); timer.Start();
@@ -313,13 +330,16 @@ namespace ProjectParser
                 timer.Stop();
                 Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
 
-                Console.WriteLine("\n\n");
-                Console.WriteLine("System: " + JsonNamespace.Project.Name);
-                Console.WriteLine("    LOC: " + JsonMethod.totalDeLOC);
-                Console.WriteLine("    Classes: " + cantidadClases);
-                Console.WriteLine("    Methods: " + JsonMethod.cantidadMetodos);
-                Console.WriteLine("    Chains: " + JsonMethod.numOfChains);
-                Console.WriteLine("    Max ChainLen: " + JsonMethod.maxChainLength);
+                if (loadNeo4jOnly == false)
+                {
+                    Console.WriteLine("\n\n");
+                    Console.WriteLine("System: " + JsonNamespace.Project.Name);
+                    Console.WriteLine("    LOC: " + JsonMethod.totalDeLOC);
+                    Console.WriteLine("    Classes: " + cantidadClases);
+                    Console.WriteLine("    Methods: " + JsonMethod.cantidadMetodos);
+                    Console.WriteLine("    Chains: " + JsonMethod.numOfChains);
+                    Console.WriteLine("    Max ChainLen: " + JsonMethod.maxChainLength);
+                }
 
                 /*
                 Console.Write("Saving metrics output to metrics.txt...");
@@ -390,6 +410,26 @@ namespace ProjectParser
                     serializer.Formatting = Formatting.Indented;
                     serializer.Serialize(writer, project);
                 }
+                */
+
+                /*
+                // Serialize City attributes
+                JsonSerializer serializer = new JsonSerializer();
+
+                using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
+                {
+                    sw.Write(project.JSerialize().ToString());
+                    sw.Flush();
+                }
+                */
+
+                /*MongoDB MapReduce*/
+                /*
+                Console.Write("Running MapReduce on MongoDB...");
+                timer.Reset(); timer.Start();
+                JsonMethod.MapReduceMetrics(MetricType.icr, MagnitudeFunctionType.sum, WeightFunctionType.cyc);
+                timer.Stop();
+                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
                 */
             }
 
@@ -1097,7 +1137,9 @@ namespace ProjectParser
                                                             icfcmin: toInt(f[20]),    icfcmax: toInt(f[21]), icfcavg: toInt(f[22]), icfcsum: toInt(f[23]),
                                                             icrkmin: toInt(f[24]),    icrkmax: toInt(f[25]), icrkavg: toInt(f[26]), icrksum: toInt(f[27]),
                                                             icfkmin: toInt(f[28]),    icfkmax: toInt(f[29]), icfkavg: toInt(f[30]), icfksum: toInt(f[31]),
-                                                            ismethod: toInt(f[32]),   iscollapsed: toInt(f[33]), isrecursive: toInt(f[34])
+                                                            ismethod: toInt(f[32]),   iscollapsed: toInt(f[33]), isrecursive: toInt(f[34]),
+                                                            isscc: toInt(f[35]),      sccid:   toInt(f[36]), calls:   toInt(f[37]), calledby: toInt(f[38]),
+                                                            method: f[39]
                                                          })
                                                         CREATE (p)-[:HAS_METHOD]->(m)
                                                         CREATE (n)-[:CONTAINS_METHOD]->(m)
@@ -1112,7 +1154,9 @@ namespace ProjectParser
                                                             icfcmin: toInt(f[20]),    icfcmax: toInt(f[21]), icfcavg: toInt(f[22]), icfcsum: toInt(f[23]),
                                                             icrkmin: toInt(f[24]),    icrkmax: toInt(f[25]), icrkavg: toInt(f[26]), icrksum: toInt(f[27]),
                                                             icfkmin: toInt(f[28]),    icfkmax: toInt(f[29]), icfkavg: toInt(f[30]), icfksum: toInt(f[31]),
-                                                            ismethod: toInt(f[32]),   iscollapsed: toInt(f[33]), isrecursive: toInt(f[34])
+                                                            ismethod: toInt(f[32]),   iscollapsed: toInt(f[33]), isrecursive: toInt(f[34]),
+                                                            isscc: toInt(f[35]),      sccid:   toInt(f[36]), calls:   toInt(f[37]), calledby: toInt(f[38]),
+                                                            method: f[39]
                                                          })
                                                         CREATE (p)-[:HAS_METHOD]->(m)"));
                 session.WriteTransaction(tx => tx.Run(@"CREATE CONSTRAINT ON (m:Method) ASSERT m.id IS UNIQUE"));
@@ -1201,7 +1245,7 @@ namespace ProjectParser
                 methodsSW.WriteLine(String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0},{5},{6},{7}," +
                     "{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19}," +
                     "{20},{21},{22},{23},{24},{25},{26},{27},{28},{29},{30},{31}," +
-                    "{32},{33},{34}", 
+                    "{32},{33},{34},{35},{36},{37},{38},{39}", 
                     project.Name, m.Id, m.Fullname, m.ClassId, m.NamespaceId, m.Loc, m.Cyc, m.Kon,
                     m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fsum,
                     m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bsum,
@@ -1209,7 +1253,8 @@ namespace ProjectParser
                     m.Cyc_metrics.Bmin, m.Cyc_metrics.Bmax, m.Cyc_metrics.Bavg, m.Cyc_metrics.Bsum,
                     m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fsum,
                     m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bsum,
-                    m.IsMethod?"1":"0", m.IsCollapsed?"1":"0", m.IsRecursive?"1":"0"));
+                    m.IsMethod?"1":"0", m.IsCollapsed?"1":"0", m.IsRecursive?"1":"0", m.IsScc?"1":"0",
+                    m.IsCollapsed?m.SccId:0, m.Calls.Count, m.CalledBy.Count, m.Name));
 
                 foreach (JsonCall c in m.Calls)
                 {
@@ -1222,7 +1267,7 @@ namespace ProjectParser
                 sccsSW.WriteLine(String.Format(@"{0}{1},{2},{3},{4},{0},{5},{6},{7}," +
                     "{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19}," +
                     "{20},{21},{22},{23},{24},{25},{26},{27},{28},{29},{30},{31}," +
-                    "{32},{33},{34}",
+                    "{32},{33},{34},{35},{36},{37},{38},{39}",
                     project.Name, m.Id, m.Fullname, "", "", m.Loc, m.Cyc, m.Kon,
                     m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fsum,
                     m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bsum,
@@ -1230,7 +1275,8 @@ namespace ProjectParser
                     m.Cyc_metrics.Bmin, m.Cyc_metrics.Bmax, m.Cyc_metrics.Bavg, m.Cyc_metrics.Bsum,
                     m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fsum,
                     m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bsum,
-                    m.IsMethod ? "1" : "0", m.IsCollapsed ? "1" : "0", m.IsRecursive ? "1" : "0"));
+                    m.IsMethod?"1":"0", m.IsCollapsed?"1":"0", m.IsRecursive?"1":"0", m.IsScc?"1":"0",
+                    m.IsCollapsed?m.SccId:0, m.Calls.Count, m.CalledBy.Count, m.Name));
 
                 foreach (JsonCall c in m.Calls)
                 {
