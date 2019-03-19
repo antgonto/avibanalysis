@@ -21,11 +21,12 @@ Second way to cross two chains.
 - Number of independent chains to create
 - Number of crosses to perform between chains
 
-#### Parameters to bre implemented
+#### Parameters to be implemented
 - LOC in a method (range)
 - CYCLO (range)
 - Method types to generate
 - fan-out of method (range, with probability function) 
+- Percentage for each crossing type
 
 ### Output
 - Number of chains
