@@ -8,19 +8,19 @@ namespace edu.tec.avib
 {
     class SuperClase: IEjecutable
     {
-    	public void inicializarSuper()
+    	public virtual void inicializarSuper()
     	{
     		// nothing here
     	}
-    	public int ejecutarSuper()
+    	public virtual int ejecutarSuper()
     	{
     		return 0; // success
     	}
-    	public void inicializar()
+    	public virtual void inicializar()
     	{
     		this.inicializarSuper();
     	}
-    	public int ejecutar()
+    	public virtual int ejecutar()
     	{
     		return this.ejecutarSuper();
     	}

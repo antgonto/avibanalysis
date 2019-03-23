@@ -30,7 +30,7 @@ namespace ProjectParser
 
             if (!attributes.TryGetValue(workspace + "." + clase + "." + name, out oAttribute))
             {
-                JsonClass c = ProjectParser.JsonClass.GetClass(clase, workspace);
+                JsonClass c = ProjectParser.JsonClass.GetClass(clase, workspace, false);
                 oAttribute = new JsonAttribute(JsonProject.Nextid++, name, c, JsonNamespace.GetNamespace(workspace));
                 attributes.Add(workspace + "." + clase + "." + name, oAttribute);
                 c.Attributes.Add(oAttribute);

@@ -29,6 +29,9 @@ namespace ProjectParser
         static SparseMatrix<int> methodChainPairs;
         static SparseMatrix<PairMetrics> pairMetricsList;
 
+        static int count = 0;
+        static int avgdepth = 0;
+
         int id;
         int sccId = -1;
         JsonMethod scc = null;
@@ -95,13 +98,13 @@ namespace ProjectParser
             this.Cyc = cyc;
         }
 
-        public static JsonMethod GetMethod(string name, string oclass, string onamespace, int loc, int kon, int cyc)
+        public static JsonMethod GetMethod(string name, string oclass, string onamespace, bool isInterface, int loc, int kon, int cyc)
         {
             JsonMethod method;
 
             if (!methods.TryGetValue(onamespace + "." + oclass + "." + name, out method))
             {
-                JsonClass c = ProjectParser.JsonClass.GetClass(oclass, onamespace);
+                JsonClass c = JsonClass.GetClass(oclass, onamespace, isInterface);
                 method = new JsonMethod(JsonProject.Nextid++, name, c, JsonNamespace.GetNamespace(onamespace), loc, kon, cyc);
                 methods.Add(onamespace + "." + oclass + "." + name, method);
                 c.Methods.Add(method);
@@ -964,30 +967,20 @@ namespace ProjectParser
                 + " BCmin: " + m.Cyc_metrics.Bmin);
         }
 
-        public static void CountChainsUsingDFS(JsonProject project)
+        public static void CountChainsUsingDFS()
         {
-            int count = 0;
-            int avgdepth = 0;
-
             List<JsonMethod> list = new List<JsonMethod>();
-
-            int method_count = methods.Count;
-            int non_called_count = 0;
 
             foreach (KeyValuePair<string, JsonMethod> m in methods)
             {
                 if (m.Value.CalledBy.Count == 0)
                 {
                     list.Add(m.Value);
-                    non_called_count++;
                 }
             }
 
-            foreach (JsonMethod m in list)
-            {
-                CountDFS(m, 1, ref avgdepth, ref count, project);
-                non_called_count--;
-            }
+            // Watch out - Sync needed!!!
+            Parallel.ForEach(list, new ParallelOptions { MaxDegreeOfParallelism = 32 }, m => CountDFS(m, 1));
 
             if (count > 0)
             {
@@ -997,32 +990,39 @@ namespace ProjectParser
             }
         }
 
-        static void CountDFS(JsonMethod m, int depth, ref int avgdepth, ref int count, JsonProject project)
+        static void CountDFS(JsonMethod m, int depth)
         {
             if (m.IsCollapsed)
             {
                 m = m.Scc;
             }
-            m.DfsFlag = true;
+            //m.DfsFlag = true; // there are no cycles
             if (m.Calls.Count == 0)
             {
                 if (depth > 2)
                 {
-                    avgdepth += depth;
-                    count++;
+                    IncreaseCount(depth);
                 }
             }
             else
             {
                 foreach (JsonCall c in m.Calls)
                 {
-                    if (c.Method.DfsFlag == false)
-                    {
-                        CountDFS(c.Method, depth + 1, ref avgdepth, ref count, project);
-                    }
+                    //if (c.Method.DfsFlag == false)
+                    //{
+                        CountDFS(c.Method, depth + 1);
+                    //}
                 }
             }
-            m.DfsFlag = false;
+            //m.DfsFlag = false;
+        }
+
+        // Sync
+        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        static void IncreaseCount(int depth)
+        {
+            avgdepth += depth;
+            count++;
         }
 
         public static void CollectChainsUsingDFS(JsonProject project)

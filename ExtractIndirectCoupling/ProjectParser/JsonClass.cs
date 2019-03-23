@@ -1,4 +1,6 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -17,6 +19,13 @@ namespace ProjectParser
         JsonNamespace onamespace;
         List<JsonAttribute> attributes = new List<JsonAttribute>();
         List<JsonMethod> methods = new List<JsonMethod>();
+
+        JsonClass parent = null;
+        List<JsonClass> interfaces = new List<JsonClass>();
+        List<JsonClass> children = new List<JsonClass>();
+        List<String> usings = new List<String>();
+        bool isInterface = false;
+        List<String> types= new List<string>();
 
         public JsonClass(int id, string name, string fullname, JsonNamespace onamespace)
         {
@@ -80,8 +89,14 @@ namespace ProjectParser
         }
 
         public JsonNamespace GetNamespace { get => onamespace; set => onamespace = value; }
+        public JsonClass Parent { get => parent; set => parent = value; }
+        public List<JsonClass> Children { get => children; set => children = value; }
+        public bool IsInterface { get => isInterface; set => isInterface = value; }
+        public List<String> Types { get => types; set => types = value; }
+        public List<JsonClass> Interfaces { get => interfaces; set => interfaces = value; }
+        public List<string> Usings { get => usings; set => usings = value; }
 
-        public static JsonClass GetClass(string name, string onamespace)
+        public static JsonClass GetClass(string name, string onamespace, bool isInterface)
         {
             JsonClass oclass;
 
@@ -89,11 +104,74 @@ namespace ProjectParser
             {
                 JsonNamespace p = JsonNamespace.GetNamespace(onamespace);
                 oclass = new JsonClass(JsonProject.Nextid++, name, onamespace + "." + name, p);
+                oclass.IsInterface = isInterface;
                 classes.Add(onamespace + "." + name, oclass);
                 p.Classes.Add(oclass);
             }
 
             return oclass;
+        }
+
+        public static JsonClass FindClass(string name, string onamespace)
+        {
+            JsonClass oclass;
+
+            if (!classes.TryGetValue(onamespace + "." + name, out oclass))
+            {
+                return null;
+            }
+
+            return oclass;
+        }
+
+        public static void ResolveHierarchy()
+        {
+            foreach (KeyValuePair<string, JsonClass> entry in Classes)
+            {
+                JsonClass c = entry.Value;
+                
+                if (c.Types.Count > 0)
+                {
+                    JsonClass p = FindClass(c.Types[0], c.FullNamespaceName);
+                    if (p != null && p.Id != c.Id)
+                    {
+                        if (p.IsInterface)
+                            c.Interfaces.Add(p);
+                        else
+                            c.Parent = p;
+                        p.Children.Add(c);
+                    }
+
+                    for (int i = 1; i < c.Types.Count; i++)
+                    {
+                        p = FindClass(c.Types[i], c.FullNamespaceName);
+                        if (p != null && p.Id != c.Id)
+                        {
+                            c.Interfaces.Add(p);
+                            p.Children.Add(c);
+                        }
+                    }
+                }
+            }
+        }
+
+        public static void PropagateCall(JsonMethod caller, JsonMethod callee, JsonCall callerEntry, JsonClass calleeClass)
+        {
+            foreach (JsonClass c in calleeClass.Children)
+            {
+                JsonMethod m = JsonMethod.FindMethod(callee.Name, c.Name, c.FullNamespaceName);
+                if (m != null)
+                {
+                    if (caller.Id != m.Id)
+                    {
+                        JsonCall calleeEntry = new JsonCall(m.Id, m.Name, m.ClassId, m.ClassName, m.NamespaceId, m.NamespaceName, m);
+                        if (!callee.CalledBy.Contains(callerEntry)) callee.CalledBy.Add(callerEntry);
+                        if (!caller.Calls.Contains(calleeEntry)) caller.Calls.Add(calleeEntry);
+                    }
+                }
+
+                if (c.Children.Count > 0) PropagateCall(caller, callee, callerEntry, c);
+            }
         }
 
     }

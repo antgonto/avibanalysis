@@ -16,7 +16,7 @@ namespace edu.tec.avib
             E claseE = new E();
             claseE.metodoE1();
             A claseA = new A();
-            claseA.metodoA1();
+            claseA.metodoA1(82, "que tal");
 
         }
 

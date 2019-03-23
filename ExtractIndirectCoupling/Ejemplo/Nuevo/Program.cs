@@ -13,11 +13,16 @@ namespace edu.tec.avib
             A claseA = new A();
             //Console.Write(claseA.metodoA2());
             //claseA.metodoA1();
-            claseA.metodoA1();
+            claseA.metodoA1(7, "hola");
             claseA.metodoA2();
 
             // claseA.metodoA4();
             Console.Read();
+
+            Class sh = new SubClass();
+            sh.SuperMethod1();
+            sh.SuperMethod2();
+            sh.Contract();
         }
     }
 }

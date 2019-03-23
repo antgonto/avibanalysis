@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace edu.tec.avib
 {
-    class SubClase: SuperClase
+    class SubClase: SuperClase, IB
     {
     	public override void inicializarSuper()
     	{
@@ -26,6 +26,18 @@ namespace edu.tec.avib
     	{
 //    		return ejecutarSuper() + base.ejecutarSuper();
     		return base.ejecutarSuper();
+    	}
+
+    	//public override void inicializar() {
+    	//	return;
+    	//}
+
+    	//public override int ejecutar() {
+    	//	return 15;
+    	//}
+
+    	public int metodoB3() {
+    		return 33;
     	}
     }
 }

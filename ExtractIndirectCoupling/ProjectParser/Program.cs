@@ -7,6 +7,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Linq;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
+using System.Threading;
+
 
 using System.Windows.Forms;
 using System.Reflection;
@@ -106,7 +108,7 @@ namespace ProjectParser
         private static void ExtractGraphFromAST(JsonProject project, Compilation myCompilation, string path)
         {
             Dictionary<string, JsonMethod> nodoNamespacesNeo4J = new Dictionary<string, JsonMethod>();
-            bool debug = false;
+            bool debug = true;
             // Send output to a file
             System.IO.StreamWriter output = null;
             if (debug) output = new System.IO.StreamWriter(@"" + path + @"\graph_info.txt");
@@ -157,17 +159,22 @@ namespace ProjectParser
                     SyntaxNode classDec = FindClass(declaracionDeMetodoActual);
                     NamespaceDeclarationSyntax namespaceDec = FindNamespace(classDec);
 
-                    // TODO: Add default namespace when null everywhere
-
                     if (classDec != null && namespaceDec != null)
                     {
                         JsonMethod m = JsonMethod.GetMethod(
-                            declaracionDeMetodoActual.Identifier.ToString(),
+                            declaracionDeMetodoActual.Identifier.ToString() + GetMethodSignature(declaracionDeMetodoActual),
                             FindClassName(classDec),
                             namespaceDec.Name.ToString(),
+                            classDec is InterfaceDeclarationSyntax,
                             lines,
                             1,
                             cyclomatic);
+
+                        //if (m.Name.StartsWith("UsingImplicitSession(") && m.ClassName.Equals("MongoClient"))
+                        //{
+                        //    string stop = GetMethodSignature(declaracionDeMetodoActual);
+                        //    stop = "continue";
+                        //}
 
                         if (debug) output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-15} {4,-15} {5,-15}",
                                                        m.Name, m.ClassName, m.NamespaceName, m.Id, m.ClassId, m.NamespaceId));
@@ -202,7 +209,38 @@ namespace ProjectParser
                 }
             }
 
+            for (int i = 0; i < semanticModels.Count; i++)
+            {
+                //Obtengo todas las classes del modelo.
+                classDeclarationSyntax = roots[i].DescendantNodes().OfType<ClassDeclarationSyntax>().ToList();
+                CompilationUnitSyntax cu = (CompilationUnitSyntax)roots[i];
+
+                //Recorro las classes para obtener su BaseList
+                foreach (ClassDeclarationSyntax claseActual in classDeclarationSyntax)
+                {
+                    NamespaceDeclarationSyntax namespaceDec = FindNamespace(claseActual);
+                    if (claseActual.BaseList != null)
+                    {
+                        JsonClass c = JsonClass.FindClass(claseActual.Identifier.ToString(), namespaceDec.Name.ToString());
+                        if (c != null)
+                        {
+                            foreach (BaseTypeSyntax bt in claseActual.BaseList.Types)
+                            {
+                                c.Types.Add(bt.Type.ToString());
+                            }
+
+                            foreach (UsingDirectiveSyntax ud in ((CompilationUnitSyntax)roots[i]).Usings)
+                            {
+                                c.Usings.Add(ud.Name.ToString());
+                            }
+                        }
+                    }
+                }
+            }
+
             if (debug) output.WriteLine("\n\nLista de Llamadas:\n----------------------------------------------------------------\n\n");
+
+            JsonClass.ResolveHierarchy();
 
             for (int i = 0; i < semanticModels.Count; i++)
             {
@@ -217,23 +255,29 @@ namespace ProjectParser
                     ISymbol symbol = semanticModels[i].GetSymbolInfo(invocation).Symbol;
                     if (methodDec != null && classDec != null && namespaceDec != null && symbol != null)
                     {
-                        if (symbol is IMethodSymbol)
+                        if (symbol is IMethodSymbol && methodDec is MethodDeclarationSyntax)
                         {
                             IMethodSymbol iSymbol = symbol as IMethodSymbol;
                             if (!iSymbol.MethodKind.ToString().Equals("ReducedExtension") &&
                                 !iSymbol.MethodKind.ToString().Equals("LocalFunction"))
                             {
                                 // 0 search only 
-                                JsonMethod caller = JsonMethod.FindMethod(FindMethodName(methodDec),
+                                JsonMethod caller = JsonMethod.FindMethod(FindMethodName(methodDec) + GetMethodSignature((MethodDeclarationSyntax)methodDec),
                                     FindClassName(classDec), namespaceDec.Name.ToString());
+
+                                if (caller.Name.StartsWith("ListDatabases(") && caller.ClassName.Equals("MongoClient"))
+                                {
+                                    bool stop = true;
+                                    if (stop) stop = false;
+                                }
 
                                 string mname = iSymbol.Name;
                                 string cname = iSymbol.ContainingSymbol.Name;
                                 string nname = iSymbol.ContainingNamespace.ToString();
                                 // 0 search only
-                                JsonMethod callee = JsonMethod.FindMethod(mname, cname, nname);
+                                JsonMethod callee = JsonMethod.FindMethod(mname + GetMethodSignature(iSymbol), cname, nname);
 
-                                if (caller != null && callee != null)
+                               if (caller != null && callee != null)
                                 {
                                     if (caller.Id == callee.Id)
                                     {
@@ -243,8 +287,9 @@ namespace ProjectParser
                                     {
                                         JsonCall callerEntry = new JsonCall(caller.Id, caller.Name, caller.ClassId, caller.ClassName, caller.NamespaceId, caller.FullNamespaceName, caller);
                                         JsonCall calleeEntry = new JsonCall(callee.Id, callee.Name, callee.ClassId, callee.ClassName, callee.NamespaceId, callee.FullNamespaceName, callee);
+                                        bool isNewCall = !callee.CalledBy.Contains(callerEntry);
 
-                                        if (!callee.CalledBy.Contains(callerEntry))
+                                        if (isNewCall)
                                         {
                                             if (debug) output.WriteLine(String.Format("{0,-150} {1,-150} {2,-150} {3,-150} {4,-150} {5,-150} {6,-15} {7,-15} {8,-15} {9,-15} {10,-15} {11,-15}",
                                                                            caller.Name, callee.Name,
@@ -255,8 +300,13 @@ namespace ProjectParser
                                                                            caller.NamespaceId, callee.NamespaceId));
                                         }
 
-                                        if (!callee.CalledBy.Contains(callerEntry)) callee.CalledBy.Add(callerEntry);
+                                        if (isNewCall) callee.CalledBy.Add(callerEntry);
                                         if (!caller.Calls.Contains(calleeEntry)) caller.Calls.Add(calleeEntry);
+
+                                        if (isNewCall && callee.GetClass.Children.Count > 0)
+                                        {
+                                            JsonClass.PropagateCall(caller, callee, callerEntry, callee.GetClass);
+                                        }
                                     }
                                 }
                             }
@@ -266,6 +316,56 @@ namespace ProjectParser
             }
 
             if (debug) output.Flush();
+        }
+
+        private static string GetSignatureFromParameters(List<ParameterSyntax> l)
+        {
+            string sig = "(";
+            foreach (ParameterSyntax p in l)
+            {
+                if (sig.Length > 1) sig += ",";
+                sig += p.Type.ToString();
+            }
+            sig += ")";
+            return sig;
+        }
+
+        private static string GetMethodSignature(MethodDeclarationSyntax md)
+        {
+            List<ParameterSyntax> l = md.ParameterList.Parameters.ToList<ParameterSyntax>();
+            return GetSignatureFromParameters(l);
+        }
+
+        private static string GetMethodSignature(IMethodSymbol md)
+        { 
+            if (md.DeclaringSyntaxReferences != null)
+            {
+                // retrieve semantic model of method
+                SyntaxReference syntaxReference = md.DeclaringSyntaxReferences.FirstOrDefault();
+                if (syntaxReference != null)
+                {
+                    var syntax = syntaxReference.GetSyntax();
+                    if (syntax is MethodDeclarationSyntax)
+                    {
+                        MethodDeclarationSyntax declaration = (MethodDeclarationSyntax)syntaxReference.GetSyntax();
+                        return GetSignatureFromParameters(declaration.ParameterList.Parameters.ToList<ParameterSyntax>());
+                    }
+                    if (syntax is DelegateDeclarationSyntax)
+                    {
+                        DelegateDeclarationSyntax declaration = (DelegateDeclarationSyntax)syntaxReference.GetSyntax();
+                        return GetSignatureFromParameters(declaration.ParameterList.Parameters.ToList<ParameterSyntax>());
+                    }
+                }
+            }
+
+            string sig = "(";
+            foreach (IParameterSymbol p in md.Parameters)
+            {
+                if (sig.Length > 1) sig += ",";
+                sig += p.Type.ToString();
+            }
+            sig += ")";
+            return sig;
         }
 
         [STAThread]
@@ -317,11 +417,28 @@ namespace ProjectParser
                     Console.WriteLine("    Methods: " + JsonMethod.cantidadMetodos);
                     Console.WriteLine("\n\n");
 
+                    // Comment to count chains
+                    
                     Console.Write("Collecting PDG Metrics using Dfs...");
                     timer.Reset(); timer.Start();
                     JsonMethod.CollectMetricsUsingDfs();
+                    //Thread T = new Thread(JsonMethod.CollectMetricsUsingDfs, 1024*1024*10);
+                    //T.Start();
+                    //T.Join();
                     timer.Stop();
                     Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+                    
+
+                    // Uncomment to count chains
+                    /*
+                    Console.Write("Counting chains using DFS...");
+                    timer.Reset(); timer.Start();
+                    Thread T = new Thread(JsonMethod.CountChainsUsingDFS, 1024 * 1024 * 20);
+                    T.Start();
+                    T.Join();
+                    timer.Stop();
+                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+                    */
                 }
 
                 Console.Write("Saving graph with metrics in neo4j...");
@@ -401,39 +518,39 @@ namespace ProjectParser
                 Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
                 */
 
-                /*
-                JsonSerializer serializer = new JsonSerializer();
+                    /*
+                    JsonSerializer serializer = new JsonSerializer();
 
-                using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
-                using (JsonWriter writer = new JsonTextWriter(sw))
-                {
-                    serializer.Formatting = Formatting.Indented;
-                    serializer.Serialize(writer, project);
+                    using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
+                    using (JsonWriter writer = new JsonTextWriter(sw))
+                    {
+                        serializer.Formatting = Formatting.Indented;
+                        serializer.Serialize(writer, project);
+                    }
+                    */
+
+                    /*
+                    // Serialize City attributes
+                    JsonSerializer serializer = new JsonSerializer();
+
+                    using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
+                    {
+                        sw.Write(project.JSerialize().ToString());
+                        sw.Flush();
+                    }
+                    */
+
+                    /*MongoDB MapReduce*/
+                    /*
+                    Console.Write("Running MapReduce on MongoDB...");
+                    timer.Reset(); timer.Start();
+                    JsonMethod.MapReduceMetrics(MetricType.icr, MagnitudeFunctionType.sum, WeightFunctionType.cyc);
+                    timer.Stop();
+                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+                    */
                 }
-                */
 
-                /*
-                // Serialize City attributes
-                JsonSerializer serializer = new JsonSerializer();
-
-                using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
-                {
-                    sw.Write(project.JSerialize().ToString());
-                    sw.Flush();
-                }
-                */
-
-                /*MongoDB MapReduce*/
-                /*
-                Console.Write("Running MapReduce on MongoDB...");
-                timer.Reset(); timer.Start();
-                JsonMethod.MapReduceMetrics(MetricType.icr, MagnitudeFunctionType.sum, WeightFunctionType.cyc);
-                timer.Stop();
-                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-                */
-            }
-
-            Console.WriteLine("Process finished successfully!");
+                Console.WriteLine("Process finished successfully!");
             Console.Read();
 
         }
@@ -1246,7 +1363,7 @@ namespace ProjectParser
                     "{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19}," +
                     "{20},{21},{22},{23},{24},{25},{26},{27},{28},{29},{30},{31}," +
                     "{32},{33},{34},{35},{36},{37},{38},{39}", 
-                    project.Name, m.Id, m.Fullname, m.ClassId, m.NamespaceId, m.Loc, m.Cyc, m.Kon,
+                    project.Name, m.Id, "\""+m.Fullname+"\"", m.ClassId, m.NamespaceId, m.Loc, m.Cyc, m.Kon,
                     m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fsum,
                     m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bsum,
                     m.Cyc_metrics.Fmin, m.Cyc_metrics.Fmax, m.Cyc_metrics.Favg, m.Cyc_metrics.Fsum,
@@ -1254,7 +1371,7 @@ namespace ProjectParser
                     m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fsum,
                     m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bsum,
                     m.IsMethod?"1":"0", m.IsCollapsed?"1":"0", m.IsRecursive?"1":"0", m.IsScc?"1":"0",
-                    m.IsCollapsed?m.SccId:0, m.Calls.Count, m.CalledBy.Count, m.Name));
+                    m.IsCollapsed?m.SccId:0, m.Calls.Count, m.CalledBy.Count, "\""+m.Name+ "\""));
 
                 foreach (JsonCall c in m.Calls)
                 {

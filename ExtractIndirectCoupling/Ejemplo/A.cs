@@ -10,7 +10,7 @@ namespace edu.tec.avib
     {
         int attribute = 0;
 
-        public int metodoA1() {
+        public int metodoA1(int a, string b) {
 
             this.attribute = 1000;
 
