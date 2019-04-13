@@ -3,6 +3,7 @@ using MongoDB.Driver;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -13,10 +14,13 @@ namespace ProjectParser
     [JsonObject(MemberSerialization.OptIn, Description = "Method")]
     public class JsonMethod : IEquatable<JsonMethod>
     {
+        bool wasProcessed = false;
+
         static public int cantidadMetodos = 0;
         static public int totalDeLOC = 0;
         static public int numOfChains = 0;
         static public int maxChainLength = 0;
+        static public int avgChainLength = 0;
         static int maxChains = 1000000;
         static int chainsCnt = 0;
         //static int[] chainMethodsCnt;
@@ -28,9 +32,15 @@ namespace ProjectParser
         static SparseMatrix<JsonLink> methodChains;
         static SparseMatrix<int> methodChainPairs;
         static SparseMatrix<PairMetrics> pairMetricsList;
+        static List<Tuple<int, int, PairMetrics>> pairMetrics;
 
         static int count = 0;
         static int avgdepth = 0;
+        static public int numMethods = 0;
+        static public int maxCalledBy = 0;
+        static public int maxCallsTo = 0;
+
+        private static SystemStats stats = new SystemStats();
 
         int id;
         int sccId = -1;
@@ -48,6 +58,12 @@ namespace ProjectParser
         List<JsonMethod> sccMethods = new List<JsonMethod>();
         List<JsonCall> calls = new List<JsonCall>();
         List<JsonCall> calledBy = new List<JsonCall>();
+        List<JsonCall> callsSCC = new List<JsonCall>();
+        List<JsonCall> calledBySCC = new List<JsonCall>();
+        long numChains = 0;
+        long jumps = 0;
+        long chainLength = 0;
+        long maxChainLen = 0;
 
         // Metrics values
         Metrics kon_metrics = new Metrics();
@@ -234,8 +250,8 @@ namespace ProjectParser
             mc.Kon_metrics.Fsum = m.Kon_metrics.Fsum + mc.Kon;
             if (mc.isSccOut)
             {
-                mc.Kon_metrics.Fmax = Math.Max(mc.Kon_metrics.Fmax, mc.Kon_metrics.Fsum);
-                mc.Kon_metrics.Fmin = Math.Min(mc.Kon_metrics.Fmin, mc.Kon_metrics.Fsum);
+                mc.Kon_metrics.Fmax = Math.Max(mc.Kon_metrics.Fmax, (int)mc.Kon_metrics.Fsum);
+                mc.Kon_metrics.Fmin = Math.Min(mc.Kon_metrics.Fmin, (int)mc.Kon_metrics.Fsum);
                 mc.Kon_metrics.Favg += mc.Kon_metrics.Fsum;
                 mc.Kon_metrics.Fcnt++;
             }
@@ -244,8 +260,8 @@ namespace ProjectParser
             mc.Loc_metrics.Fsum = m.Loc_metrics.Fsum + mc.Loc;
             if (mc.isSccOut)
             {
-                mc.Loc_metrics.Fmax = Math.Max(mc.Loc_metrics.Fmax, mc.Loc_metrics.Fsum);
-                mc.Loc_metrics.Fmin = Math.Min(mc.Loc_metrics.Fmin, mc.Loc_metrics.Fsum);
+                mc.Loc_metrics.Fmax = Math.Max(mc.Loc_metrics.Fmax, (int)mc.Loc_metrics.Fsum);
+                mc.Loc_metrics.Fmin = Math.Min(mc.Loc_metrics.Fmin, (int)mc.Loc_metrics.Fsum);
                 mc.Loc_metrics.Favg += mc.Loc_metrics.Fsum;
                 mc.Loc_metrics.Fcnt++;
             }
@@ -254,8 +270,8 @@ namespace ProjectParser
             mc.Cyc_metrics.Fsum = m.Cyc_metrics.Fsum + mc.Cyc;
             if (mc.isSccOut)
             {
-                mc.Cyc_metrics.Fmax = Math.Max(mc.Cyc_metrics.Fmax, mc.Cyc_metrics.Fsum);
-                mc.Cyc_metrics.Fmin = Math.Min(mc.Cyc_metrics.Fmin, mc.Cyc_metrics.Fsum);
+                mc.Cyc_metrics.Fmax = Math.Max(mc.Cyc_metrics.Fmax, (int)mc.Cyc_metrics.Fsum);
+                mc.Cyc_metrics.Fmin = Math.Min(mc.Cyc_metrics.Fmin, (int)mc.Cyc_metrics.Fsum);
                 mc.Cyc_metrics.Favg += mc.Cyc_metrics.Fsum;
                 mc.Cyc_metrics.Fcnt++;
             }
@@ -269,8 +285,8 @@ namespace ProjectParser
             mc.Kon_metrics.Bsum = m.Kon_metrics.Bsum + mc.Kon;
             if (mc.isSccIn)
             {
-                mc.Kon_metrics.Bmax = Math.Max(mc.Kon_metrics.Bmax, mc.Kon_metrics.Bsum);
-                mc.Kon_metrics.Bmin = Math.Min(mc.Kon_metrics.Bmin, mc.Kon_metrics.Bsum);
+                mc.Kon_metrics.Bmax = Math.Max(mc.Kon_metrics.Bmax, (int)mc.Kon_metrics.Bsum);
+                mc.Kon_metrics.Bmin = Math.Min(mc.Kon_metrics.Bmin, (int)mc.Kon_metrics.Bsum);
                 mc.Kon_metrics.Bavg += mc.Kon_metrics.Bsum;
                 mc.Kon_metrics.Bcnt++;
             }
@@ -279,8 +295,8 @@ namespace ProjectParser
             mc.Loc_metrics.Bsum = m.Loc_metrics.Bsum + mc.Loc;
             if (mc.isSccIn)
             {
-                mc.Loc_metrics.Bmax = Math.Max(mc.Loc_metrics.Bmax, mc.Loc_metrics.Bsum);
-                mc.Loc_metrics.Bmin = Math.Min(mc.Loc_metrics.Bmin, mc.Loc_metrics.Bsum);
+                mc.Loc_metrics.Bmax = Math.Max(mc.Loc_metrics.Bmax, (int)mc.Loc_metrics.Bsum);
+                mc.Loc_metrics.Bmin = Math.Min(mc.Loc_metrics.Bmin, (int)mc.Loc_metrics.Bsum);
                 mc.Loc_metrics.Bavg += mc.Loc_metrics.Bsum;
                 mc.Loc_metrics.Bcnt++;
             }
@@ -289,8 +305,8 @@ namespace ProjectParser
             mc.Cyc_metrics.Bsum = m.Cyc_metrics.Bsum + mc.Cyc;
             if (mc.isSccIn)
             {
-                mc.Cyc_metrics.Bmax = Math.Max(mc.Cyc_metrics.Bmax, mc.Cyc_metrics.Bsum);
-                mc.Cyc_metrics.Bmin = Math.Min(mc.Cyc_metrics.Bmin, mc.Cyc_metrics.Bsum);
+                mc.Cyc_metrics.Bmax = Math.Max(mc.Cyc_metrics.Bmax, (int)mc.Cyc_metrics.Bsum);
+                mc.Cyc_metrics.Bmin = Math.Min(mc.Cyc_metrics.Bmin, (int)mc.Cyc_metrics.Bsum);
                 mc.Cyc_metrics.Bavg += mc.Cyc_metrics.Bsum;
                 mc.Cyc_metrics.Bcnt++;
             }
@@ -354,6 +370,532 @@ namespace ProjectParser
             scc.Cyc_metrics.Bcnt++;
         }
 
+        public static void CollectMetricsInParallel()
+        {
+            pairMetrics = new List<Tuple<int, int, PairMetrics>>();
+
+            //int method_cnt = JsonMethod.SccList.Count;
+            //foreach (KeyValuePair<string, JsonMethod> kv in JsonMethod.Methods) { if (kv.Value.IsCollapsed == false) method_cnt++; }
+
+            List<JsonSubchain> list = new List<JsonSubchain>();
+
+            //Console.WriteLine("    Collecting method list[" + method_cnt + "]...");
+            Console.WriteLine("    Collecting method list...");
+            foreach (KeyValuePair<string, JsonMethod> kv in JsonMethod.Methods)
+            {
+                JsonMethod m = kv.Value;
+                if (m.IsCollapsed == false)
+                {
+                    list.Add(new JsonSubchain(m));
+                }
+            }
+            foreach (JsonMethod m in JsonMethod.SccList)
+            {
+                list.Add(new JsonSubchain(m));
+            }
+
+            List<JsonSubchain> next_list = list;
+
+            int minRecPerThread = 100000;
+            int nthreads;
+
+            int maxThreads = 0;
+            int actualThreads = 0;
+
+            Console.WriteLine("    Building all subchains ...");
+            Console.Write("          ");
+            while (next_list.Count > 0)
+            {
+                maxThreads = 0;
+                actualThreads = 0;
+                nthreads = Math.Min(50, (next_list.Count + minRecPerThread - 1) / minRecPerThread);
+
+                //Console.WriteLine("        ...launching " + nthreads + " threads maximum...");
+
+                List<JsonSubchain> new_list = new List<JsonSubchain>();
+                List<Tuple<int, int>> chunks = SplitRecords(next_list.Count, nthreads);
+
+                Parallel.ForEach(
+                    chunks,
+                    new ParallelOptions { MaxDegreeOfParallelism = nthreads },
+                    chunk => {
+                        var max = Interlocked.Increment(ref actualThreads);
+
+                        if (maxThreads < max)
+                        {
+                            maxThreads = max;
+                        }
+
+                        Console.Write(".");
+
+                        List<JsonSubchain> l = new List<JsonSubchain>();
+                        for (var index = chunk.Item1; index <= chunk.Item2; index++)
+                        {
+                            List<JsonSubchain> result = CollectAllSubchains(next_list[index]);
+                            l.AddRange(result);
+                        }
+                        AppendSubchains(l, new_list);
+
+                        Interlocked.Decrement(ref actualThreads);
+                    });
+                //Console.WriteLine();
+                //Console.WriteLine("           ->Max Threads=" + maxThreads + " new_list.Count=" + new_list.Count);
+
+                list.AddRange(new_list);
+                next_list = new_list;
+            }
+            Console.WriteLine();
+
+            Console.WriteLine("    Copying list of all chains ...");
+            JsonSubchain[] records = list.ToArray();
+            list = null;
+            next_list = null;
+
+            Console.WriteLine("    Sorting for Riskiness ...");
+            // Collect metrics for Rigidity (Fan-In)
+            Array.Sort(records, JsonSubchain.SortToFromInitialAscending());
+
+            nthreads = Math.Min(50, (records.Length + minRecPerThread - 1) / minRecPerThread);
+
+            Console.WriteLine("    Splitting records ...");
+            // Split records in nthreads slices to collect Rigidity (Fan-In)
+            List<Tuple<int, int>> slices = SplitRecordsByTo(records, nthreads);
+
+            maxThreads = 0;
+            actualThreads = 0;
+
+            Console.WriteLine("    Collecting Riskiness... slice size=" + slices[0].Item2);
+            Console.Write("          ");
+            Parallel.ForEach(
+                slices,
+                new ParallelOptions { MaxDegreeOfParallelism = slices.Count },
+                s => {
+                    var max = Interlocked.Increment(ref actualThreads);
+
+                    if (maxThreads < max)
+                    {
+                        maxThreads = max;
+                    }
+
+                    Console.Write(".");
+
+                    CollectRiskiness(records, s.Item1, s.Item2);
+
+                    Interlocked.Decrement(ref actualThreads);
+                });
+            Console.WriteLine();
+            Console.WriteLine("    Max Threads=" + maxThreads);
+
+            // Collect metrics for Coupling Strength (All-Pairs)
+            maxMethods = (int)JsonProject.Nextid;
+
+
+            Console.WriteLine("    Splitting records ...");
+            // Split records in nthreads slices to collect Coupling Strength (All-Pairs)
+            slices = SplitRecordsByToFrom(records, nthreads);
+
+            maxThreads = 0;
+            actualThreads = 0;
+
+            Console.WriteLine("    Collecting Coupling Strength... slice size=" + slices[0].Item2);
+            Console.Write("          ");
+            Parallel.ForEach(
+                slices,
+                new ParallelOptions { MaxDegreeOfParallelism = slices.Count },
+                s => {
+                    var max = Interlocked.Increment(ref actualThreads);
+
+                    if (maxThreads < max)
+                    {
+                        maxThreads = max;
+                    }
+
+                    Console.Write(".");
+
+                    List<Tuple<int, int, PairMetrics>> pairMetricsList = CollectCouplingStrength(records, s.Item1, s.Item2);
+                    AppendPairMetrics(pairMetricsList, pairMetrics);
+
+                    Interlocked.Decrement(ref actualThreads);
+                });
+            Console.WriteLine();
+            Console.WriteLine("    Max Threads=" + maxThreads);
+
+            Console.WriteLine("    Sorting for Fragility ...");
+            // Collect metrics for Fragility (Fan-Out)
+            Array.Sort(records, JsonSubchain.SortFromToFinalAscending());
+
+            nthreads = Math.Min(50, (records.Length + minRecPerThread - 1) / minRecPerThread);
+
+            Console.WriteLine("    Splitting records ...");
+            // Split records in nthreads slices to collect Fragility (Fan-Out)
+            slices = SplitRecordsByFrom(records, nthreads);
+
+            maxThreads = 0;
+            actualThreads = 0;
+
+            Console.WriteLine("    Collecting Fragility... slice size=" + slices[0].Item2);
+            Console.Write("          ");
+            Parallel.ForEach(
+                slices,
+                new ParallelOptions { MaxDegreeOfParallelism = slices.Count },
+                s => {
+                    var max = Interlocked.Increment(ref actualThreads);
+
+                    if (maxThreads < max)
+                    {
+                        maxThreads = max;
+                    }
+
+                    Console.Write(".");
+
+                    CollectFragility(records, s.Item1, s.Item2);
+
+                    Interlocked.Decrement(ref actualThreads);
+                });
+            Console.WriteLine();
+            Console.WriteLine("    Max Threads=" + maxThreads);
+        }
+
+        private static void CollectRiskiness(JsonSubchain[] records, int i, int j)
+        {
+            int idx = i;
+
+            JsonSubchain s = records[idx];
+            int chlen = s.Chain.Length;
+            int to = s.To;
+            JsonMethod m = s.Chain[chlen - 1];
+            HashSet<int> h = new HashSet<int>();
+
+            bool enteredIf = false;
+
+            while (idx <= j)
+            {
+                s = records[idx];
+                chlen = s.Chain.Length;
+
+                if (s.To != to)
+                {
+                    if (m.Kon_metrics.Fcnt > 0) m.Kon_metrics.Favg /= m.Kon_metrics.Fcnt;
+                    if (m.Loc_metrics.Fcnt > 0) m.Loc_metrics.Favg /= m.Loc_metrics.Fcnt;
+                    if (m.Cyc_metrics.Fcnt > 0) m.Cyc_metrics.Favg /= m.Cyc_metrics.Fcnt;
+
+                    m.WasProcessed = enteredIf;
+                    enteredIf = false;
+
+                    to = s.To;
+                    m = s.Chain[chlen - 1];
+                    h = new HashSet<int>();
+                }
+
+                if (s.Initial == false && s.Chain[0].CalledBy.Count == 0)
+                {
+                    Console.WriteLine("Chain from method " + s.Chain[0].Fullname + " to method " + s.LastMethod.Fullname + " should be Initial");
+                }
+
+                if (s.Initial)
+                {
+                    enteredIf = true;
+
+                    int kon_sum = 0;
+                    int kon_net = 0;
+                    int loc_sum = 0;
+                    int loc_net = 0;
+                    int cyc_sum = 0;
+                    int cyc_net = 0;
+                    foreach (JsonMethod n in s.Chain)
+                    {
+                        kon_sum += n.Kon;
+                        loc_sum += n.Loc;
+                        cyc_sum += n.Cyc;
+                        if (h.Contains(n.Id) == false)
+                        {
+                            h.Add(n.Id);
+                            kon_net += n.Kon;
+                            loc_net += n.Loc;
+                            cyc_net += n.Cyc;
+                        }
+                    }
+                    m.Kon_metrics.Fmax = Math.Max(kon_sum, m.Kon_metrics.Fmax);
+                    m.Kon_metrics.Fmin = Math.Min(kon_sum, m.Kon_metrics.Fmin);
+                    m.Kon_metrics.Fsum += kon_sum;
+                    m.Kon_metrics.Favg += kon_sum;
+                    m.Kon_metrics.Fnet += kon_net;
+                    m.Kon_metrics.Fcnt++;
+
+                    m.Loc_metrics.Fmax = Math.Max(loc_sum, m.Loc_metrics.Fmax);
+                    m.Loc_metrics.Fmin = Math.Min(loc_sum, m.Loc_metrics.Fmin);
+                    m.Loc_metrics.Fsum += loc_sum;
+                    m.Loc_metrics.Favg += loc_sum;
+                    m.Loc_metrics.Fnet += loc_net;
+                    m.Loc_metrics.Fcnt++;
+
+                    m.Cyc_metrics.Fmax = Math.Max(cyc_sum, m.Cyc_metrics.Fmax);
+                    m.Cyc_metrics.Fmin = Math.Min(cyc_sum, m.Cyc_metrics.Fmin);
+                    m.Cyc_metrics.Fsum += cyc_sum;
+                    m.Cyc_metrics.Favg += cyc_sum;
+                    m.Cyc_metrics.Fnet += cyc_net;
+                    m.Cyc_metrics.Fcnt++;
+                }
+
+                idx++;
+            }
+
+            if (m.Kon_metrics.Fcnt > 0) m.Kon_metrics.Favg /= m.Kon_metrics.Fcnt;
+            if (m.Loc_metrics.Fcnt > 0) m.Loc_metrics.Favg /= m.Loc_metrics.Fcnt;
+            if (m.Cyc_metrics.Fcnt > 0) m.Cyc_metrics.Favg /= m.Cyc_metrics.Fcnt;
+
+            m.WasProcessed = enteredIf;
+        }
+
+        private static List<Tuple<int, int, PairMetrics>> CollectCouplingStrength(JsonSubchain[] records, int i, int j)
+        {
+            int idx = i;
+            List<Tuple<int, int, PairMetrics>> metric_list = new List<Tuple<int, int, PairMetrics>>();
+
+            JsonSubchain s = records[idx];
+            int from = s.From;
+            int to = s.To;
+            HashSet<int> h = new HashSet<int>();
+            PairMetrics metrics = new PairMetrics();
+
+            while (idx <= j)
+            {
+                s = records[idx];
+
+                if (s.From != from || s.To != to)
+                {
+                    if (from != to)
+                    {
+                        AvgPairMetrics(metrics);
+                        metric_list.Add(new Tuple<int, int, PairMetrics>(from, to, metrics));
+                    }
+
+                    from = s.From;
+                    to = s.To;
+                    h = new HashSet<int>();
+                    metrics = new PairMetrics();
+                }
+
+                if (from != to)
+                {
+                    foreach (JsonMethod n in s.Chain)
+                    {
+                        AddPairMetricsNet(metrics, n, (h.Contains(n.Id) == false));
+                        if (h.Contains(n.Id) == false) h.Add(n.Id);
+                    }
+
+                    AcumPairMetrics(metrics);
+                }
+
+                idx++;
+            }
+
+            if (from != to)
+            {
+                AvgPairMetrics(metrics);
+                metric_list.Add(new Tuple<int, int, PairMetrics>(from, to, metrics));
+            }
+
+            return metric_list;
+        }
+
+        // Sync
+        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        static void AppendPairMetrics(List<Tuple<int, int, PairMetrics>> partial, List<Tuple<int, int, PairMetrics>> complete)
+        {
+            complete.AddRange(partial);
+        }
+
+        // Sync
+        [MethodImplAttribute(MethodImplOptions.Synchronized)]
+        static void AppendSubchains(List<JsonSubchain> list, List<JsonSubchain> subchains)
+        {
+            subchains.AddRange(list);
+        }
+
+        private static void CollectFragility(JsonSubchain[] records, int i, int j)
+        {
+            int idx = i;
+
+            JsonSubchain s = records[idx];
+            int chlen = s.Chain.Length;
+            int from = s.From;
+            JsonMethod m = s.Chain[0];
+            HashSet<int> h = new HashSet<int>();
+
+            while (idx <= j)
+            {
+                s = records[idx];
+                chlen = s.Chain.Length;
+
+                if (s.From != from)
+                {
+                    if (m.Kon_metrics.Bcnt > 0) m.Kon_metrics.Bavg /= m.Kon_metrics.Bcnt;
+                    if (m.Loc_metrics.Bcnt > 0) m.Loc_metrics.Bavg /= m.Loc_metrics.Bcnt;
+                    if (m.Cyc_metrics.Bcnt > 0) m.Cyc_metrics.Bavg /= m.Cyc_metrics.Bcnt;
+
+                    from = s.From;
+                    m = s.Chain[0];
+                    h = new HashSet<int>();
+                }
+
+                if (s.Final)
+                {
+                    int kon_sum = 0;
+                    int kon_net = 0;
+                    int loc_sum = 0;
+                    int loc_net = 0;
+                    int cyc_sum = 0;
+                    int cyc_net = 0;
+                    foreach (JsonMethod n in s.Chain)
+                    {
+                        kon_sum += n.Kon;
+                        loc_sum += n.Loc;
+                        cyc_sum += n.Cyc;
+                        if (h.Contains(n.Id) == false)
+                        {
+                            h.Add(n.Id);
+                            kon_net += n.Kon;
+                            loc_net += n.Loc;
+                            cyc_net += n.Cyc;
+                        }
+                    }
+                    m.Kon_metrics.Bmax = Math.Max(kon_sum, m.Kon_metrics.Bmax);
+                    m.Kon_metrics.Bmin = Math.Min(kon_sum, m.Kon_metrics.Bmin);
+                    m.Kon_metrics.Bsum += kon_sum;
+                    m.Kon_metrics.Bavg += kon_sum;
+                    m.Kon_metrics.Bnet += kon_net;
+                    m.Kon_metrics.Bcnt++;
+
+                    m.Loc_metrics.Bmax = Math.Max(loc_sum, m.Loc_metrics.Bmax);
+                    m.Loc_metrics.Bmin = Math.Min(loc_sum, m.Loc_metrics.Bmin);
+                    m.Loc_metrics.Bsum += loc_sum;
+                    m.Loc_metrics.Bavg += loc_sum;
+                    m.Loc_metrics.Bnet += loc_net;
+                    m.Loc_metrics.Bcnt++;
+
+                    m.Cyc_metrics.Bmax = Math.Max(cyc_sum, m.Cyc_metrics.Bmax);
+                    m.Cyc_metrics.Bmin = Math.Min(cyc_sum, m.Cyc_metrics.Bmin);
+                    m.Cyc_metrics.Bsum += cyc_sum;
+                    m.Cyc_metrics.Bavg += cyc_sum;
+                    m.Cyc_metrics.Bnet += cyc_net;
+                    m.Cyc_metrics.Bcnt++;
+                }
+
+                idx++;
+            }
+
+            if (m.Kon_metrics.Bcnt > 0) m.Kon_metrics.Bavg /= m.Kon_metrics.Bcnt;
+            if (m.Loc_metrics.Bcnt > 0) m.Loc_metrics.Bavg /= m.Loc_metrics.Bcnt;
+            if (m.Cyc_metrics.Bcnt > 0) m.Cyc_metrics.Bavg /= m.Cyc_metrics.Bcnt;
+        }
+
+        private static List<Tuple<int, int>> SplitRecords(int len, int maxslices)
+        {
+            List<Tuple<int, int>> indexes = new List<Tuple<int, int>>();
+            int offset = (len + maxslices - 1) / maxslices;
+            int first = 0;
+            int last = Math.Min(first + offset - 1, len - 1);
+
+            while (first < len)
+            {
+                indexes.Add(new Tuple<int, int>(first, last));
+                first = last + 1;
+                last = Math.Min(first + offset - 1, len - 1);
+            }
+
+            return indexes;
+        }
+
+        private static List<Tuple<int, int>> SplitRecordsByTo(JsonSubchain[] records, int maxslices)
+        {
+            int len = records.Length;
+            List<Tuple<int, int>> indexes = new List<Tuple<int, int>>();
+            int offset = (len + maxslices -1) / maxslices;
+            int first = 0;
+            int last = Math.Min(first + offset - 1, len - 1);
+
+            while (first < len)
+            {
+                while (last < (len - 1) && records[last].To == records[last + 1].To) last++;
+                indexes.Add(new Tuple<int, int>(first, last));
+                first = last + 1;
+                last = Math.Min(first + offset - 1, len - 1);
+            }
+
+            return indexes;
+        }
+
+        private static List<Tuple<int, int>> SplitRecordsByFrom(JsonSubchain[] records, int maxslices)
+        {
+            int len = records.Length;
+            List<Tuple<int, int>> indexes = new List<Tuple<int, int>>();
+            int offset = (len + maxslices - 1) / maxslices;
+            int first = 0;
+            int last = Math.Min(first + offset - 1, len - 1);
+
+            while (first < len)
+            {
+                while (last < (len - 1) && records[last].From == records[last + 1].From) last++;
+                indexes.Add(new Tuple<int, int>(first, last));
+                first = last + 1;
+                last = Math.Min(first + offset - 1, len - 1);
+            }
+
+            return indexes;
+        }
+
+        private static List<Tuple<int, int>> SplitRecordsByToFrom(JsonSubchain[] records, int maxslices)
+        {
+            int len = records.Length;
+            List<Tuple<int, int>> indexes = new List<Tuple<int, int>>();
+            int offset = (len + maxslices - 1) / maxslices;
+            int first = 0;
+            int last = Math.Min(first + offset - 1, len - 1);
+
+            while (first < len)
+            {
+                while (last < (len - 1) && 
+                    records[last].To == records[last + 1].To &&
+                    records[last].From == records[last + 1].From) last++;
+                indexes.Add(new Tuple<int, int>(first, last));
+                first = last + 1;
+                last = Math.Min(first + offset - 1, len - 1);
+            }
+
+            return indexes;
+        }
+
+        private static JsonSubchain[] MergeLists(List<JsonSubchain[]> list)
+        {
+            int listSize = 0;
+
+            foreach (JsonSubchain[] s in list) listSize += s.Length;
+
+            JsonSubchain[] records = new JsonSubchain[listSize];
+            int pos = 0;
+
+            foreach (JsonSubchain[] s in list)
+            {
+                s.CopyTo(records, pos);
+                pos += s.Length;
+            }
+
+            return records;
+        }
+
+        private static List<JsonSubchain> CollectAllSubchains(JsonSubchain s)
+        {
+            List<JsonSubchain> list = new List<JsonSubchain>();
+            foreach (JsonCall c in s.LastMethod.Calls)
+            {
+                JsonSubchain sch = new JsonSubchain(s.From, c.Method, s.Chain);
+                list.Add(sch);
+            }
+
+            return list;
+        }
+
         public static void CollectMetricsUsingDfs()
         {
             maxMethods = (int)JsonProject.Nextid;
@@ -369,6 +911,8 @@ namespace ProjectParser
 
             List<JsonMethod> startList = new List<JsonMethod>();
             List<JsonMethod> allList = new List<JsonMethod>();
+
+            Console.WriteLine("     ... collecting starting methods...");
 
             foreach (KeyValuePair<string, JsonMethod> kv in methods)
             {
@@ -387,6 +931,7 @@ namespace ProjectParser
                 }
             }
 
+            Console.WriteLine("     ... collecting starting SCCs...");
             foreach (JsonMethod m in sccList)
             {
                 allList.Add(m);
@@ -401,13 +946,30 @@ namespace ProjectParser
                 }
             }
 
+            JsonMethod.numMethods = allList.Count;
+            JsonMethod.maxCalledBy = 0;
+            JsonMethod.maxCallsTo = 0;
+
+            foreach (JsonMethod m in allList)
+            {
+                if (m.calledBy.Count > JsonMethod.maxCalledBy) JsonMethod.maxCalledBy = m.calledBy.Count;
+                if (m.calls.Count > JsonMethod.maxCallsTo) JsonMethod.maxCallsTo = m.calls.Count;
+            }
+
+            Console.WriteLine("     ... collecting metrics using DFS thread ...");
+
             // Watch out - Sync needed!!!
             Parallel.ForEach(startList, m => CollectMetricsUsingDfsThread(m));
             //Parallel.ForEach(startList, new ParallelOptions { MaxDegreeOfParallelism = 32 }, m => CollectMetricsUsingDfsThread(m));
 
+            Console.WriteLine("     ... collecting average and sum metrics ...");
+
+            /**/
             // No Sync needed!!!
             Parallel.ForEach(allList, m => { AvgMetrics(m); SumMetrics(m); });
             //Parallel.ForEach(allList, new ParallelOptions { MaxDegreeOfParallelism = 32 }, m => { AvgMetrics(m); SumMetrics(m); });
+
+            Console.WriteLine("     ... collecting pair list ...");
 
             List<Tuple<JsonMethod, JsonMethod>> pairList = new List<Tuple<JsonMethod, JsonMethod>>();
             foreach (JsonMethod m1 in allList)
@@ -415,9 +977,12 @@ namespace ProjectParser
                     if (m1.Id != m2.Id && m1.IsCollapsed == false && m2.IsCollapsed == false)
                         pairList.Add(new Tuple<JsonMethod, JsonMethod>(m1, m2));
 
+            Console.WriteLine("     ... collecting pair metrics...");
+
             // Watch out - Sync needed!!!
             Parallel.ForEach(pairList, p => { CollectPairMetrics(p); });
             //Parallel.ForEach(pairList, new ParallelOptions { MaxDegreeOfParallelism = 32 }, p => { CollectPairMetrics(p); });
+            /**/
         }
 
         static void CollectMetricsUsingDfsThread(JsonMethod m)
@@ -486,15 +1051,6 @@ namespace ProjectParser
             }
         }
 
-        /*
-        maxMethods = JsonProject.Nextid;
-        chainsCnt = 0;
-        chainMethodsCnt = new List<long>((int) maxMethods);
-        chainMethods = new SparseMatrix<JsonMethod>(maxChains, maxMethods);
-        methodChainsCnt = new List<long>((int) maxMethods);
-        methodChains = new SparseMatrix<JsonChain>(maxChains, maxMethods);
-        */
-
         // Sync
         [MethodImplAttribute(MethodImplOptions.Synchronized)]
         static void CollectNewChain(List<JsonMethod> list)
@@ -525,10 +1081,11 @@ namespace ProjectParser
                 methodChains[cidx, m.Id] = link;
 
                 methodChainPairs[chainId, m.Id] = midx;
-
-                JsonMethod.numOfChains++;
-                JsonMethod.maxChainLength = Math.Max(JsonMethod.maxChainLength, mCnt);
             }
+
+            JsonMethod.numOfChains++;
+            JsonMethod.maxChainLength = Math.Max(JsonMethod.maxChainLength, mCnt);
+            JsonMethod.avgChainLength += mCnt;
         }
 
         // Sync
@@ -545,24 +1102,42 @@ namespace ProjectParser
             p.C.Fsum += m.Cyc;
         }
 
+        static void AddPairMetricsNet(PairMetrics p, JsonMethod m, bool isNet)
+        {
+            p.K.Facc += m.Kon;
+            p.L.Facc += m.Loc;
+            p.C.Facc += m.Cyc;
+
+            p.K.Fsum += m.Kon;
+            p.L.Fsum += m.Loc;
+            p.C.Fsum += m.Cyc;
+
+            if (isNet)
+            {
+                p.K.Fnet += m.Kon;
+                p.L.Fnet += m.Loc;
+                p.C.Fnet += m.Cyc;
+            }
+        }
+
         static void AcumPairMetrics(PairMetrics p)
         {
-            p.K.Favg += p.K.Fsum;
-            p.K.Fmin = Math.Min(p.K.Fmin, p.K.Fsum);
-            p.K.Fmax = Math.Max(p.K.Fmax, p.K.Fsum);
-            p.K.Fsum = 0;
+            p.K.Favg += p.K.Facc;
+            p.K.Fmin = Math.Min(p.K.Fmin, p.K.Facc);
+            p.K.Fmax = Math.Max(p.K.Fmax, p.K.Facc);
+            p.K.Facc = 0;
             p.K.Fcnt++;
 
-            p.L.Favg += p.L.Fsum;
-            p.L.Fmin = Math.Min(p.L.Fmin, p.L.Fsum);
-            p.L.Fmax = Math.Max(p.L.Fmax, p.L.Fsum);
-            p.L.Fsum = 0;
+            p.L.Favg += p.L.Facc;
+            p.L.Fmin = Math.Min(p.L.Fmin, p.L.Facc);
+            p.L.Fmax = Math.Max(p.L.Fmax, p.L.Facc);
+            p.L.Facc = 0;
             p.L.Fcnt++;
 
-            p.C.Favg += p.C.Fsum;
-            p.C.Fmin = Math.Min(p.C.Fmin, p.C.Fsum);
-            p.C.Fmax = Math.Max(p.C.Fmax, p.C.Fsum);
-            p.C.Fsum = 0;
+            p.C.Favg += p.C.Facc;
+            p.C.Fmin = Math.Min(p.C.Fmin, p.C.Facc);
+            p.C.Fmax = Math.Max(p.C.Fmax, p.C.Facc);
+            p.C.Facc = 0;
             p.C.Fcnt++;
         }
 
@@ -669,6 +1244,105 @@ namespace ProjectParser
 
             SetForwardMetricsSum(m, forwardSet);
             SetBackwardMetricsSum(m, backwardSet);
+        }
+
+        public static void CountChainsUsingBFS()
+        {
+            List<JsonMethod> list = new List<JsonMethod>();
+            foreach (KeyValuePair<string, JsonMethod> m in methods)
+            {
+                JsonMethod method = m.Value;
+
+                if (method.IsCollapsed == false)
+                {
+                    if (method.CalledBy.Count == 0)
+                    {
+                        method.NumChains = 1;
+                        method.ChainLength = 1;
+                        method.MaxChainLen = 1;
+                        list.Add(method);
+                    }
+
+                    Stats.numMetodos++;
+                    Stats.numLOC += method.Loc;
+                    if (Stats.maxCalls < method.Calls.Count)
+                        Stats.maxCallsToName = method.Fullname;
+                    Stats.maxCalls = Math.Max(Stats.maxCalls, method.Calls.Count);
+                    if (Stats.maxCalledby < method.CalledBy.Count)
+                        Stats.maxCalledByName = method.Fullname;
+                    Stats.maxCalledby = Math.Max(Stats.maxCalledby, method.CalledBy.Count);
+                    Stats.promCalls += method.Calls.Count;
+                    Stats.promCalledby += method.CalledBy.Count;
+                }
+            }
+            foreach (JsonMethod m in sccList)
+            {
+                JsonMethod method = m;
+
+                if (method.CalledBy.Count == 0)
+                {
+                    method.NumChains = 1;
+                    method.ChainLength = 1;
+                    method.MaxChainLen = 1;
+                    list.Add(method);
+                }
+
+                Stats.numMetodos++;
+                Stats.numLOC += method.Loc;
+                if (Stats.maxCalls < method.Calls.Count)
+                    Stats.maxCallsToName = method.Fullname;
+                Stats.maxCalls = Math.Max(Stats.maxCalls, method.Calls.Count);
+                if (Stats.maxCalledby < method.CalledBy.Count)
+                    Stats.maxCalledByName = method.Fullname;
+                Stats.maxCalledby = Math.Max(Stats.maxCalledby, method.CalledBy.Count);
+                Stats.promCalls += method.Calls.Count;
+                Stats.promCalledby += method.CalledBy.Count;
+            }
+
+            Stats.numClases = JsonClass.Classes.Count;
+            Stats.numMetodosPorClase = Stats.numMetodos / Stats.numClases;
+            Stats.promCalls /= Stats.numMetodos;
+            Stats.promCalledby /= Stats.numMetodos;
+
+            CountChainsWithdBFS(list);
+
+        }
+
+        static void CountChainsWithdBFS(List<JsonMethod> methods)
+        {
+            List<JsonMethod> list = methods;
+            List<JsonMethod> nextlist;
+
+            while (list.Count > 0)
+            {
+                nextlist = new List<JsonMethod>();
+                foreach (JsonMethod method in list)
+                {
+                    if (method.Calls.Count == 0)
+                    {
+                        Stats.numCadenas += method.NumChains;
+                        Stats.promLargoCadena += method.ChainLength;
+                        Stats.maxLargoCadena = Math.Max(Stats.maxLargoCadena, method.MaxChainLen);
+                    }
+                    else
+                    {
+                        foreach (JsonCall c in method.Calls)
+                        {
+                            c.Method.Jumps++;
+                            c.Method.NumChains += method.NumChains;
+                            c.Method.ChainLength += method.ChainLength + method.NumChains;
+                            c.Method.MaxChainLen = Math.Max(c.Method.MaxChainLen, method.MaxChainLen + 1);
+                            if (c.Method.CalledBy.Count == c.Method.Jumps)
+                            {
+                                nextlist.Add(c.Method);
+                            }
+                        }
+                    }
+                }
+                list = nextlist;
+            }
+
+            Stats.promLargoCadena /= Stats.numCadenas;
         }
 
         public static void CollectMetricsUsingBFS()
@@ -816,55 +1490,8 @@ namespace ProjectParser
 
         public static void CollectSccMetricsUsingDFS()
         {
-            // TODO: this method needs to be completed, using SUM by now
-
-            //MarkSccEntranceAndExit();
-
             foreach (JsonMethod scc in JsonMethod.SccList)
             {
-                /*
-                scc.SccMethods.ForEach(delegate (JsonMethod c) { c.Visited = false; });
-                scc.sccForward = new Dictionary<long, Dictionary<long, List<ForwardMetrics>>>();
-                
-                foreach (JsonMethod m in scc.SccMethods.FindAll(i => i.isSccIn == true))
-                {
-                    scc.SccMethods.ForEach(delegate (JsonMethod c) { ResetMetricValues(c); });
-                    InitForwardMetricValues(m);
-                    SccMetricsForwardDFS(m);
-                    Dictionary<long, List<ForwardMetrics>> outputs = new Dictionary<long, List<ForwardMetrics>>();
-                    scc.sccForward.Add(m.Id, outputs);
-                    foreach (JsonMethod o in scc.SccMethods.FindAll(x => x.isSccOut == true))
-                    {
-                        AvgDfsForwardMetricValues(o);
-                        List<ForwardMetrics> list = new List<ForwardMetrics>();
-                        list.Add(o.kon_metrics.GetForwardMetrics());
-                        list.Add(o.loc_metrics.GetForwardMetrics());
-                        list.Add(o.cyc_metrics.GetForwardMetrics());
-                        outputs.Add(o.Id, list);
-                    }
-                }
-
-                scc.sccBackward = new Dictionary<long, Dictionary<long, List<BackwardMetrics>>>();
-
-                foreach (JsonMethod m in scc.SccMethods.FindAll(i => i.isSccOut == true))
-                {
-                    scc.SccMethods.ForEach(delegate (JsonMethod c) { ResetMetricValues(c); });
-                    InitBackwardMetricValues(m);
-                    SccMetricsBackwardDFS(m);
-                    Dictionary<long, List<BackwardMetrics>> inputs = new Dictionary<long, List<BackwardMetrics>>();
-                    scc.sccBackward.Add(m.Id, inputs);
-                    foreach (JsonMethod i in scc.SccMethods.FindAll(x => x.isSccIn == true))
-                    {
-                        AvgDfsBackwardMetricValues(i);
-                        List<BackwardMetrics> list = new List<BackwardMetrics>();
-                        list.Add(i.kon_metrics.GetBackwardMetrics());
-                        list.Add(i.loc_metrics.GetBackwardMetrics());
-                        list.Add(i.cyc_metrics.GetBackwardMetrics());
-                        inputs.Add(i.Id, list);
-                    }
-                }
-                */
-
                 scc.Kon = 0;
                 scc.Loc = 0;
                 scc.Cyc = 0;
@@ -973,20 +1600,29 @@ namespace ProjectParser
 
             foreach (KeyValuePair<string, JsonMethod> m in methods)
             {
-                if (m.Value.CalledBy.Count == 0)
+                if (m.Value.CalledBy.Count == 0 && m.Value.IsCollapsed == false)
                 {
                     list.Add(m.Value);
                 }
             }
 
+            foreach (JsonMethod s in sccList)
+            {
+                if (s.CalledBy.Count == 0)
+                {
+                    list.Add(s);
+                }
+            }
+
             // Watch out - Sync needed!!!
-            Parallel.ForEach(list, new ParallelOptions { MaxDegreeOfParallelism = 32 }, m => CountDFS(m, 1));
+            Parallel.ForEach(list, m => CountDFS(m, 1));
+            //Parallel.ForEach(list, new ParallelOptions { MaxDegreeOfParallelism = 32 }, m => CountDFS(m, 1));
 
             if (count > 0)
             {
                 avgdepth = avgdepth / count;
                 Console.WriteLine("# of Chains: " + count.ToString() + ", AVG Length: " + avgdepth.ToString());
-                Console.Read();
+                //Console.Read();
             }
         }
 
@@ -999,10 +1635,10 @@ namespace ProjectParser
             //m.DfsFlag = true; // there are no cycles
             if (m.Calls.Count == 0)
             {
-                if (depth > 2)
-                {
+                //if (depth > 2)
+                //{
                     IncreaseCount(depth);
-                }
+                //}
             }
             else
             {
@@ -1170,8 +1806,15 @@ namespace ProjectParser
         public Dictionary<int, Dictionary<int, List<BackwardMetrics>>> SccBackward { get => sccBackward; set => sccBackward = value; }
         internal static SparseMatrix<PairMetrics> PairMetricsList { get => pairMetricsList; set => pairMetricsList = value; }
         public static int MaxMethods { get => maxMethods; set => maxMethods = value; }
-
-
+        public List<JsonCall> CallsSCC { get => callsSCC; set => callsSCC = value; }
+        public List<JsonCall> CalledBySCC { get => calledBySCC; set => calledBySCC = value; }
+        public static SystemStats Stats { get => stats; set => stats = value; }
+        public long NumChains { get => numChains; set => numChains = value; }
+        public long ChainLength { get => chainLength; set => chainLength = value; }
+        public long Jumps { get => jumps; set => jumps = value; }
+        public long MaxChainLen { get => maxChainLen; set => maxChainLen = value; }
+        internal static List<Tuple<int, int, PairMetrics>> PairMetrics { get => pairMetrics; set => pairMetrics = value; }
+        public bool WasProcessed { get => wasProcessed; set => wasProcessed = value; }
 
         static BsonJavaScript map = new BsonJavaScript(@"
             function() {
@@ -1620,6 +2263,23 @@ namespace ProjectParser
     public enum WeightFunctionType
     {
         kon, loc, cyc
+    }
+
+    public class SystemStats
+    {
+        public System.Int64 numClases = 0;
+        public System.Int64 numMetodos = 0;
+        public System.Int64 numMetodosPorClase = 0;
+        public System.Int64 numCadenas = 0;
+        public System.Int64 maxLargoCadena = 0;
+        public System.Int64 promLargoCadena = 0;
+        public System.Int64 numLOC = 0;
+        public System.Int64 maxCalls = 0;
+        public System.Int64 promCalls = 0;
+        public System.Int64 maxCalledby = 0;
+        public System.Int64 promCalledby = 0;
+        public string maxCallsToName = "";
+        public string maxCalledByName = "";
     }
 
 }

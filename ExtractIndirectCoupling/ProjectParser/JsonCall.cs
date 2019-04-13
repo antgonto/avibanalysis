@@ -60,23 +60,25 @@ namespace ProjectParser
         public bool Equals(JsonCall other)
         {
             return other != null &&
-                   id == other.id &&
+                   id == other.id; /* &&
                    string.Equals(name, other.name) &&
                    classId == other.classId &&
                    string.Equals(className, other.className) &&
                    namespaceId == other.namespaceId &&
-                   string.Equals(namespaceName, other.namespaceName);
+                   string.Equals(namespaceName, other.namespaceName);*/
         }
 
         public override int GetHashCode()
         {
             var hashCode = 652166652;
             hashCode = hashCode * -1521134295 + id.GetHashCode();
+            /*
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(name);
             hashCode = hashCode * -1521134295 + classId.GetHashCode();
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(className);
             hashCode = hashCode * -1521134295 + namespaceId.GetHashCode();
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(namespaceName);
+            */
             return hashCode;
         }
     }

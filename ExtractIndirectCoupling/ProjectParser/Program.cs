@@ -40,7 +40,11 @@ namespace ProjectParser
         public static void Main(string[] args)
         {
             //Metrics();
-            JsonStructure();
+
+            if (args.Length == 0)
+                LoadProject(null, null);
+            else if (args.Length == 2)
+                LoadProject(args[0], args[1]);
         }
 
         private static SyntaxNode FindMethod(SyntaxNode obj)
@@ -108,7 +112,7 @@ namespace ProjectParser
         private static void ExtractGraphFromAST(JsonProject project, Compilation myCompilation, string path)
         {
             Dictionary<string, JsonMethod> nodoNamespacesNeo4J = new Dictionary<string, JsonMethod>();
-            bool debug = true;
+            bool debug = false;
             // Send output to a file
             System.IO.StreamWriter output = null;
             if (debug) output = new System.IO.StreamWriter(@"" + path + @"\graph_info.txt");
@@ -219,9 +223,11 @@ namespace ProjectParser
                 foreach (ClassDeclarationSyntax claseActual in classDeclarationSyntax)
                 {
                     NamespaceDeclarationSyntax namespaceDec = FindNamespace(claseActual);
-                    if (claseActual.BaseList != null)
+                    String namespaceName = (namespaceDec == null ? "" : namespaceDec.Name.ToString());
+                    // TODO: permitir usar namespace default
+                    if (claseActual.BaseList != null && namespaceDec != null)
                     {
-                        JsonClass c = JsonClass.FindClass(claseActual.Identifier.ToString(), namespaceDec.Name.ToString());
+                        JsonClass c = JsonClass.FindClass(claseActual.Identifier.ToString(), namespaceName);
                         if (c != null)
                         {
                             foreach (BaseTypeSyntax bt in claseActual.BaseList.Types)
@@ -253,10 +259,22 @@ namespace ProjectParser
                     SyntaxNode classDec = FindClass(methodDec);
                     NamespaceDeclarationSyntax namespaceDec = FindNamespace(classDec);
                     ISymbol symbol = semanticModels[i].GetSymbolInfo(invocation).Symbol;
+
+                    //if (methodDec != null && classDec != null)
+                    //{
+                    //    if (((ClassDeclarationSyntax)classDec).Identifier.Text.Equals("SIALnAbogados") &&
+                    //        ((MethodDeclarationSyntax)methodDec).Identifier.Text.Equals("ConsultarAbogados"))
+                    //    {
+                    //        bool stop = true;
+                    //        if (stop) stop = false;
+                    //    }
+                    //}
+
                     if (methodDec != null && classDec != null && namespaceDec != null && symbol != null)
                     {
                         if (symbol is IMethodSymbol && methodDec is MethodDeclarationSyntax)
                         {
+
                             IMethodSymbol iSymbol = symbol as IMethodSymbol;
                             if (!iSymbol.MethodKind.ToString().Equals("ReducedExtension") &&
                                 !iSymbol.MethodKind.ToString().Equals("LocalFunction"))
@@ -265,11 +283,11 @@ namespace ProjectParser
                                 JsonMethod caller = JsonMethod.FindMethod(FindMethodName(methodDec) + GetMethodSignature((MethodDeclarationSyntax)methodDec),
                                     FindClassName(classDec), namespaceDec.Name.ToString());
 
-                                if (caller.Name.StartsWith("ListDatabases(") && caller.ClassName.Equals("MongoClient"))
-                                {
-                                    bool stop = true;
-                                    if (stop) stop = false;
-                                }
+                                //if (caller.Name.Equals("ConsultarAbogados(IAbogados)") && caller.ClassName.Equals("SIAWcfAbogados"))
+                                //{
+                                //    bool stop = true;
+                                //    if (stop) stop = false;
+                                //}
 
                                 string mname = iSymbol.Name;
                                 string cname = iSymbol.ContainingSymbol.Name;
@@ -368,8 +386,30 @@ namespace ProjectParser
             return sig;
         }
 
-        [STAThread]
-        public static void JsonStructure()
+        private static void CloudUnattended()
+        {
+            string[] projects = new string[10];
+            projects[0] = @"C:\Users\jnavas05\Desktop\repos\sources\sources\industry\DCI";
+            projects[1] = @"C:\Users\jnavas05\Desktop\repos\sources\sources\industry\FastWorks";
+            projects[2] = @"C:\Users\jnavas05\Desktop\repos\sources\sources\industry\IPSUM";
+            projects[3] = @"C:\Users\jnavas05\Desktop\repos\sources\sources\industry\SGIE";
+            projects[4] = @"C:\Users\jnavas05\Desktop\repos\sources\sources\industry\TimeReporter";
+            projects[5] = @"C:\Users\jnavas05\Desktop\repos\sources\sources\open source\json.net";
+            projects[6] = @"C:\Users\jnavas05\Desktop\repos\sources\sources\open source\mongo";
+            projects[7] = @"C:\Users\jnavas05\Desktop\repos\sources\sources\open source\neo4j";
+            projects[8] = @"C:\Users\jnavas05\Desktop\repos\sources\sources\open source\netmf";
+            projects[9] = @"C:\Users\jnavas05\Desktop\repos\sources\sources\open source\nodejs-tools";
+
+            string output_dir = @"C:\Users\jnavas05\Desktop\repos\output";
+
+            foreach (string p in projects)
+            {
+                LoadProject(p, output_dir);
+            }
+
+        }
+
+        private static void LoadProject(string p, string o)
         {
             JsonProject project = new JsonProject();
             JsonNamespace.Project = project;
@@ -378,14 +418,26 @@ namespace ProjectParser
 
             Compilation myCompilation = null;
             if (loadNeo4jOnly == false)
-                myCompilation = CreateTestCompilation();//Llama a la clase para crear la lista de archivos
+                myCompilation = CreateTestCompilation(p);//Llama a la clase para crear la lista de archivos
 
-            FolderBrowserDialog salida = new FolderBrowserDialog();
-            salida.Description = @"Output folder";
-            salida.SelectedPath = @"C:\Users\jnavas\source\repos\output";
-            //salida.SelectedPath = @"C:\Users\Administrador\Documents\GitHub\avibanalysis\ExtractIndirectCoupling\output";
-            //salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
-            if (salida.ShowDialog() == DialogResult.OK)
+            bool run = true;
+
+            string output_path = o;
+
+            if (o == null)
+            {
+                FolderBrowserDialog salida = new FolderBrowserDialog();
+                salida.Description = @"Output folder";
+                salida.SelectedPath = @"C:\Users\jnavas\source\repos\output";
+                //salida.SelectedPath = @"C:\Users\Administrador\Documents\GitHub\avibanalysis\ExtractIndirectCoupling\output";
+                //salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
+                if (salida.ShowDialog() == DialogResult.OK)
+                    output_path = salida.SelectedPath;
+                else
+                    run = false;
+            }
+
+            if (run)
             {
 
                 Stopwatch timer = new Stopwatch();
@@ -393,7 +445,7 @@ namespace ProjectParser
                 {
                     Console.Write("Loading ASTs...");
                     timer.Start();
-                    ExtractGraphFromAST(project, myCompilation, salida.SelectedPath);
+                    ExtractGraphFromAST(project, myCompilation, output_path);
                     myCompilation = null;
                     timer.Stop();
                     Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
@@ -410,15 +462,46 @@ namespace ProjectParser
                     timer.Stop();
                     Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
 
+                    /*
+                    // Code to generate HPC Project Input File
+                    Console.Write("Writing HPC Project Input File...");
+                    timer.Reset(); timer.Start();
+                    WriteHPCInputFile(salida.SelectedPath);
+                    timer.Stop();
+                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+                    */
+
+                    Console.Write("Counting chains using BFS...");
+                    timer.Reset(); timer.Start();
+                    JsonMethod.CountChainsUsingBFS();
+                    timer.Stop();
+                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+
                     Console.WriteLine("\n\n");
                     Console.WriteLine("System: " + JsonNamespace.Project.Name);
-                    Console.WriteLine("    LOC: " + JsonMethod.totalDeLOC);
-                    Console.WriteLine("    Classes: " + cantidadClases);
-                    Console.WriteLine("    Methods: " + JsonMethod.cantidadMetodos);
+                    Console.WriteLine("    LOC: " + JsonMethod.Stats.numLOC);
+                    Console.WriteLine("    Classes: " + JsonMethod.Stats.numClases);
+                    Console.WriteLine("    Methods: " + JsonMethod.Stats.numMetodos);
+                    Console.WriteLine("    Methods per class: " + JsonMethod.Stats.numMetodosPorClase);
+                    Console.WriteLine("    Max Calls To Method: " + JsonMethod.Stats.maxCallsToName);
+                    Console.WriteLine("    Max Calls To: " + JsonMethod.Stats.maxCalls);
+                    Console.WriteLine("    Avg Calls To: " + JsonMethod.Stats.promCalls);
+                    Console.WriteLine("    Max Called By Method: " + JsonMethod.Stats.maxCalledByName);
+                    Console.WriteLine("    Max Called By: " + JsonMethod.Stats.maxCalledby);
+                    Console.WriteLine("    Avg Called By: " + JsonMethod.Stats.promCalledby);
+                    Console.WriteLine("    Chains: " + JsonMethod.Stats.numCadenas);
+                    Console.WriteLine("    Max ChainLen: " + JsonMethod.Stats.maxLargoCadena);
+                    Console.WriteLine("    Avg ChainLen: " + JsonMethod.Stats.promLargoCadena);
                     Console.WriteLine("\n\n");
 
+                    Console.Write("Collecting PDG Metrics using Parallelism...");
+                    timer.Reset(); timer.Start();
+                    JsonMethod.CollectMetricsInParallel();
+                    timer.Stop();
+                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+
                     // Comment to count chains
-                    
+                    /*
                     Console.Write("Collecting PDG Metrics using Dfs...");
                     timer.Reset(); timer.Start();
                     JsonMethod.CollectMetricsUsingDfs();
@@ -427,36 +510,21 @@ namespace ProjectParser
                     //T.Join();
                     timer.Stop();
                     Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-                    
-
-                    // Uncomment to count chains
-                    /*
-                    Console.Write("Counting chains using DFS...");
-                    timer.Reset(); timer.Start();
-                    Thread T = new Thread(JsonMethod.CountChainsUsingDFS, 1024 * 1024 * 20);
-                    T.Start();
-                    T.Join();
-                    timer.Stop();
-                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
                     */
+
                 }
 
+
+                // Uncomment this
+                /**/
                 Console.Write("Saving graph with metrics in neo4j...");
                 timer.Reset(); timer.Start();
                 SaveNeo4JGraph(project);
                 timer.Stop();
                 Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+                /**/
 
-                if (loadNeo4jOnly == false)
-                {
-                    Console.WriteLine("\n\n");
-                    Console.WriteLine("System: " + JsonNamespace.Project.Name);
-                    Console.WriteLine("    LOC: " + JsonMethod.totalDeLOC);
-                    Console.WriteLine("    Classes: " + cantidadClases);
-                    Console.WriteLine("    Methods: " + JsonMethod.cantidadMetodos);
-                    Console.WriteLine("    Chains: " + JsonMethod.numOfChains);
-                    Console.WriteLine("    Max ChainLen: " + JsonMethod.maxChainLength);
-                }
+
 
                 /*
                 Console.Write("Saving metrics output to metrics.txt...");
@@ -518,41 +586,116 @@ namespace ProjectParser
                 Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
                 */
 
-                    /*
-                    JsonSerializer serializer = new JsonSerializer();
+                /*
+                JsonSerializer serializer = new JsonSerializer();
 
-                    using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
-                    using (JsonWriter writer = new JsonTextWriter(sw))
-                    {
-                        serializer.Formatting = Formatting.Indented;
-                        serializer.Serialize(writer, project);
-                    }
-                    */
+                using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
+                using (JsonWriter writer = new JsonTextWriter(sw))
+                {
+                    serializer.Formatting = Formatting.Indented;
+                    serializer.Serialize(writer, project);
+                }
+                */
 
-                    /*
-                    // Serialize City attributes
-                    JsonSerializer serializer = new JsonSerializer();
+                /*
+                // Serialize City attributes
+                JsonSerializer serializer = new JsonSerializer();
 
-                    using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
-                    {
-                        sw.Write(project.JSerialize().ToString());
-                        sw.Flush();
-                    }
-                    */
+                using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
+                {
+                    sw.Write(project.JSerialize().ToString());
+                    sw.Flush();
+                }
+                */
 
-                    /*MongoDB MapReduce*/
-                    /*
-                    Console.Write("Running MapReduce on MongoDB...");
-                    timer.Reset(); timer.Start();
-                    JsonMethod.MapReduceMetrics(MetricType.icr, MagnitudeFunctionType.sum, WeightFunctionType.cyc);
-                    timer.Stop();
-                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-                    */
+                /*MongoDB MapReduce*/
+                /*
+                Console.Write("Running MapReduce on MongoDB...");
+                timer.Reset(); timer.Start();
+                JsonMethod.MapReduceMetrics(MetricType.icr, MagnitudeFunctionType.sum, WeightFunctionType.cyc);
+                timer.Stop();
+                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+                */
+            }
+
+            Console.WriteLine("Process finished successfully!");
+            //if (o == null) Console.Read();
+
+        }
+
+        private static void WriteHPCInputFile(string path)
+        {
+            System.IO.StreamWriter output = null;
+            output = new System.IO.StreamWriter(@"" + path + @"\graph_info.txt");
+
+            foreach (KeyValuePair<string, JsonMethod> kv in JsonMethod.Methods)
+            {
+                JsonMethod m = kv.Value;
+                Dictionary<int, int> calls = new Dictionary<int, int>();
+                Dictionary<int, int> calledby = new Dictionary<int, int>();
+                string scalls = "", scalledby = "";
+
+                foreach (JsonCall c in m.Calls)
+                {
+                    JsonMethod cm = c.Method;
+                    if (cm.IsCollapsed) cm = cm.Scc;
+                    if (calls.ContainsKey(cm.Id) == false) calls.Add(cm.Id, cm.Id);
                 }
 
-                Console.WriteLine("Process finished successfully!");
-            Console.Read();
+                foreach (KeyValuePair<int, int> k in calls)
+                {
+                    scalls += k.Key.ToString() + " ";
+                }
 
+                foreach (JsonCall c in m.CalledBy)
+                {
+                    JsonMethod cm = c.Method;
+                    if (cm.IsCollapsed) cm = cm.Scc;
+                    if (calledby.ContainsKey(cm.Id) == false) calledby.Add(cm.Id, cm.Id);
+                }
+
+                foreach (KeyValuePair<int, int> k in calledby)
+                {
+                    scalledby += k.Key.ToString() + " ";
+                }
+
+                output.WriteLine(String.Format("{0} {1} {2} {3}{4} {5}",
+                                               m.Id, m.Loc, calls.Count, scalls, calledby.Count, scalledby));
+            }
+
+            foreach (JsonMethod m in JsonMethod.SccList)
+            {
+                Dictionary<int, int> calls = new Dictionary<int, int>();
+                Dictionary<int, int> calledby = new Dictionary<int, int>();
+                string scalls = "", scalledby = "";
+
+                foreach (JsonCall c in m.Calls)
+                {
+                    JsonMethod cm = c.Method;
+                    if (calls.ContainsKey(cm.Id) == false) calls.Add(cm.Id, cm.Id);
+                }
+
+                foreach (KeyValuePair<int, int> k in calls)
+                {
+                    scalls += k.Key.ToString() + " ";
+                }
+
+                foreach (JsonCall c in m.CalledBy)
+                {
+                    JsonMethod cm = c.Method;
+                    if (calledby.ContainsKey(cm.Id) == false) calledby.Add(cm.Id, cm.Id);
+                }
+
+                foreach (KeyValuePair<int, int> k in calledby)
+                {
+                    scalledby += k.Key.ToString() + " ";
+                }
+
+                output.WriteLine(String.Format("{0,-10} {1,-10} {2,-5} {3}{4,-5} {5}",
+                                               m.Id, m.Loc, calls.Count, scalls, calledby.Count, scalledby));
+            }
+
+            output.Flush();
         }
 
         public static void Metrics()
@@ -563,7 +706,7 @@ namespace ProjectParser
             //*                                             *
             //***********************************************
             List<Metodo> listaMetodos = new System.Collections.Generic.List<Metodo>();
-            Compilation myCompilation = CreateTestCompilation();//Llama a la clase para crear la lista de archivos
+            Compilation myCompilation = CreateTestCompilation(null);//Llama a la clase para crear la lista de archivos
 
             List<SemanticModel> semanticModels = new List<SemanticModel>();
             List<SyntaxNode> roots = new List<SyntaxNode>();
@@ -1022,22 +1165,33 @@ namespace ProjectParser
 
                 output.Flush();
 
-                Console.Read();
+                //Console.Read();
             }
         }
 
-        [STAThread]
-        private static Compilation CreateTestCompilation()//JsonClass para la creacion de los árboles de sintaxis
+        private static Compilation CreateTestCompilation(string p)//JsonClass para la creacion de los árboles de sintaxis
         {
-            FolderBrowserDialog entrada = new FolderBrowserDialog();
-            //entrada.SelectedPath = @"C:\Users\Administrador\Documents\repos\roslyn";
-            entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
-            //entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
-            //entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
-            entrada.Description = @"Input folder";
-            if (entrada.ShowDialog() == DialogResult.OK)
+            String programPath = p;
+
+            bool run = true;
+
+            if (p == null)
             {
-                Console.WriteLine(entrada.SelectedPath);
+                FolderBrowserDialog entrada = new FolderBrowserDialog();
+                //entrada.SelectedPath = @"C:\Users\Administrador\Documents\repos\roslyn";
+                entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
+                //entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
+                //entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
+                entrada.Description = @"Input folder";
+                if (entrada.ShowDialog() == DialogResult.OK)
+                    programPath = entrada.SelectedPath;
+                else
+                    run = false;
+            }
+
+            if (run)
+            {
+                Console.WriteLine(programPath);
                 // creation of the syntax tree for every file    
                 //String programPath = @"C:\Users\Steven\Desktop\Código prueba\shadowsocks-windows-master";
                 //  String programPath = @"C:\Users\Steven\Desktop\Código prueba\mongo-csharp-driver-master\mongo-csharp-driver-master\src";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
@@ -1048,7 +1202,6 @@ namespace ProjectParser
                 //String programPath = @"C:\Users\jnavas\source\repos\mongo";
 
                 //String programPath = @"C:\Users\jnavas\source\repos\roslyn";
-                String programPath = @"" + entrada.SelectedPath;
                 //String programPath = @"C:\Users\Steven\Documents\GitHub\AnalizadorDFS\AnalizadorDFS\Ejemplo";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
                 //String programPath = @"C:\Users\jnavas\source\repos\AnalizadorDFS\AnalizadorDFS\Ejemplo";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
 
@@ -1096,27 +1249,65 @@ namespace ProjectParser
                 }
             }
 
-            /*
-            long maxLen = 0;
-            long avgLen = 0;
-            long count = 0;
+            foreach(KeyValuePair<string, JsonMethod> entry in JsonMethod.Methods)
+            {
+                JsonMethod m = entry.Value;
+                if (m.IsMethod == true && m.IsCollapsed == false)
+                {
+                    // substitute calls to SCC's methods to a call to the SCC method
+                    foreach (JsonCall cm in m.Calls.ToList())
+                    {
+                        if (cm.Method.IsCollapsed == true)
+                        {
+                            JsonMethod scc = cm.Method.Scc;
+                            JsonCall sccCall = new JsonCall(scc.Id, scc.Name, -1, "noclass", -1, "nonamespace", scc);
+                            if (m.Calls.Contains(sccCall) == false) m.Calls.Add(sccCall);
+                            m.CallsSCC.Add(cm);
+                            m.Calls.Remove(cm);
+                        }
+                    }
+                    // substitute calls from SCC's methods to a call from the SCC method
+                    foreach (JsonCall cm in m.CalledBy.ToList())
+                    {
+                        if (cm.Method.IsCollapsed == true)
+                        {
+                            JsonMethod scc = cm.Method.Scc;
+                            JsonCall sccCalledby = new JsonCall(scc.Id, scc.Name, -1, "noclass", -1, "nonamespace", scc);
+                            if (m.CalledBy.Contains(sccCalledby) == false) m.CalledBy.Add(sccCalledby);
+                            m.CalledBySCC.Add(cm);
+                            m.CalledBy.Remove(cm);
+                        }
+                    }
+                }
+            }
+
             foreach (JsonMethod m in JsonMethod.SccList)
             {
-                long c = 0;
-                Console.Write("SCC" + m.SccId + " (" + m.SccMethods.Count + "): ");
-                foreach (JsonMethod s in m.SccMethods)
+                // substitute calls to SCC's methods to a call to the SCC method
+                foreach (JsonCall cm in m.Calls.ToList())
                 {
-                    c++;
-                    Console.Write(s.Name + ", ");
+                    if (cm.Method.IsCollapsed == true)
+                    {
+                        JsonMethod scc = cm.Method.Scc;
+                        JsonCall sccCall = new JsonCall(scc.Id, scc.Name, -1, "noclass", -1, "nonamespace", scc);
+                        if (m.Calls.Contains(sccCall) == false) m.Calls.Add(sccCall);
+                        m.CallsSCC.Add(cm);
+                        m.Calls.Remove(cm);
+                    }
                 }
-                Console.WriteLine();
-                maxLen = Math.Max(maxLen, c);
-                avgLen += c;
-                count++;
+                // substitute calls from SCC's methods to a call from the SCC method
+                foreach (JsonCall cm in m.CalledBy.ToList())
+                {
+                    if (cm.Method.IsCollapsed == true)
+                    {
+                        JsonMethod scc = cm.Method.Scc;
+                        JsonCall sccCalledby = new JsonCall(scc.Id, scc.Name, -1, "noclass", -1, "nonamespace", scc);
+                        if (m.CalledBy.Contains(sccCalledby) == false) m.CalledBy.Add(sccCalledby);
+                        m.CalledBySCC.Add(cm);
+                        m.CalledBy.Remove(cm);
+                    }
+                }
             }
-            Console.WriteLine("Count: " + count.ToString() + ", Max: " + maxLen.ToString() + ", Avg: " + (avgLen / count).ToString());
-            Console.Read();
-            */
         }
 
         private static void GabowDFS(JsonMethod n, int depth)
@@ -1248,15 +1439,15 @@ namespace ProjectParser
                                                         MERGE (c:Class { id: f[2] })
                                                         CREATE (m:Method { id: f[0], name: f[1], 
                                                             lines:   toInt(f[ 5]), cyclomatic: toInt(f[6]),  constant: toInt(f[7]),
-                                                            icrlmin: toInt(f[ 8]),    icrlmax: toInt(f[9]),  icrlavg: toInt(f[10]), icrlsum: toInt(f[11]),
-                                                            icflmin: toInt(f[12]),    icflmax: toInt(f[13]), icflavg: toInt(f[14]), icflsum: toInt(f[15]),
-                                                            icrcmin: toInt(f[16]),    icrcmax: toInt(f[17]), icrcavg: toInt(f[18]), icrcsum: toInt(f[19]),
-                                                            icfcmin: toInt(f[20]),    icfcmax: toInt(f[21]), icfcavg: toInt(f[22]), icfcsum: toInt(f[23]),
-                                                            icrkmin: toInt(f[24]),    icrkmax: toInt(f[25]), icrkavg: toInt(f[26]), icrksum: toInt(f[27]),
-                                                            icfkmin: toInt(f[28]),    icfkmax: toInt(f[29]), icfkavg: toInt(f[30]), icfksum: toInt(f[31]),
-                                                            ismethod: toInt(f[32]),   iscollapsed: toInt(f[33]), isrecursive: toInt(f[34]),
-                                                            isscc: toInt(f[35]),      sccid:   toInt(f[36]), calls:   toInt(f[37]), calledby: toInt(f[38]),
-                                                            method: f[39]
+                                                            icrlmin: toInt(f[ 8]),    icrlmax: toInt(f[9]),  icrlavg: toInt(f[10]), icrlsum: toInt(f[11]), icrlnet: toInt(f[12]),
+                                                            icflmin: toInt(f[13]),    icflmax: toInt(f[14]), icflavg: toInt(f[15]), icflsum: toInt(f[16]), icflnet: toInt(f[17]),
+                                                            icrcmin: toInt(f[18]),    icrcmax: toInt(f[19]), icrcavg: toInt(f[20]), icrcsum: toInt(f[21]), icrcnet: toInt(f[22]),
+                                                            icfcmin: toInt(f[23]),    icfcmax: toInt(f[24]), icfcavg: toInt(f[25]), icfcsum: toInt(f[26]), icfcnet: toInt(f[27]),
+                                                            icrkmin: toInt(f[28]),    icrkmax: toInt(f[29]), icrkavg: toInt(f[30]), icrksum: toInt(f[31]), icrknet: toInt(f[32]),
+                                                            icfkmin: toInt(f[33]),    icfkmax: toInt(f[34]), icfkavg: toInt(f[35]), icfksum: toInt(f[36]), icfknet: toInt(f[37]),
+                                                            ismethod: toInt(f[38]),   iscollapsed: toInt(f[39]), isrecursive: toInt(f[40]),
+                                                            isscc: toInt(f[41]),      sccid:   toInt(f[42]), calls:   toInt(f[43]), calledby: toInt(f[44]),
+                                                            method: f[45]
                                                          })
                                                         CREATE (p)-[:HAS_METHOD]->(m)
                                                         CREATE (n)-[:CONTAINS_METHOD]->(m)
@@ -1265,15 +1456,15 @@ namespace ProjectParser
                                                         MERGE (p:Project { id: f[4] })
                                                         CREATE (m:Method { id: f[0], name: f[1], 
                                                             lines:   toInt(f[ 5]), cyclomatic: toInt(f[6]),  constant: toInt(f[7]),
-                                                            icrlmin: toInt(f[ 8]),    icrlmax: toInt(f[9]),  icrlavg: toInt(f[10]), icrlsum: toInt(f[11]),
-                                                            icflmin: toInt(f[12]),    icflmax: toInt(f[13]), icflavg: toInt(f[14]), icflsum: toInt(f[15]),
-                                                            icrcmin: toInt(f[16]),    icrcmax: toInt(f[17]), icrcavg: toInt(f[18]), icrcsum: toInt(f[19]),
-                                                            icfcmin: toInt(f[20]),    icfcmax: toInt(f[21]), icfcavg: toInt(f[22]), icfcsum: toInt(f[23]),
-                                                            icrkmin: toInt(f[24]),    icrkmax: toInt(f[25]), icrkavg: toInt(f[26]), icrksum: toInt(f[27]),
-                                                            icfkmin: toInt(f[28]),    icfkmax: toInt(f[29]), icfkavg: toInt(f[30]), icfksum: toInt(f[31]),
-                                                            ismethod: toInt(f[32]),   iscollapsed: toInt(f[33]), isrecursive: toInt(f[34]),
-                                                            isscc: toInt(f[35]),      sccid:   toInt(f[36]), calls:   toInt(f[37]), calledby: toInt(f[38]),
-                                                            method: f[39]
+                                                            icrlmin: toInt(f[ 8]),    icrlmax: toInt(f[9]),  icrlavg: toInt(f[10]), icrlsum: toInt(f[11]), icrlnet: toInt(f[12]),
+                                                            icflmin: toInt(f[13]),    icflmax: toInt(f[14]), icflavg: toInt(f[15]), icflsum: toInt(f[16]), icflnet: toInt(f[17]),
+                                                            icrcmin: toInt(f[18]),    icrcmax: toInt(f[19]), icrcavg: toInt(f[20]), icrcsum: toInt(f[21]), icrcnet: toInt(f[22]),
+                                                            icfcmin: toInt(f[23]),    icfcmax: toInt(f[24]), icfcavg: toInt(f[25]), icfcsum: toInt(f[26]), icfcnet: toInt(f[27]),
+                                                            icrkmin: toInt(f[28]),    icrkmax: toInt(f[29]), icrkavg: toInt(f[30]), icrksum: toInt(f[31]), icrknet: toInt(f[32]),
+                                                            icfkmin: toInt(f[33]),    icfkmax: toInt(f[34]), icfkavg: toInt(f[35]), icfksum: toInt(f[36]), icfknet: toInt(f[37]),
+                                                            ismethod: toInt(f[38]),   iscollapsed: toInt(f[39]), isrecursive: toInt(f[40]),
+                                                            isscc: toInt(f[41]),      sccid:   toInt(f[42]), calls:   toInt(f[43]), calledby: toInt(f[44]),
+                                                            method: f[45]
                                                          })
                                                         CREATE (p)-[:HAS_METHOD]->(m)"));
                 session.WriteTransaction(tx => tx.Run(@"CREATE CONSTRAINT ON (m:Method) ASSERT m.id IS UNIQUE"));
@@ -1288,18 +1479,18 @@ namespace ProjectParser
                                                         MERGE (m2:Method { id: f[1] })
                                                         CREATE (m1)-[:CALLS]->(m2)"));
 
-                session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///collapses.csv"" as f
-                                                        MERGE (m1:Method { id: f[0] })
-                                                        MERGE (m2:Method { id: f[1] })
-                                                        CREATE (m1)-[:COLLAPSES]->(m2)"));
+                //session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///collapses.csv"" as f
+                //                                        MERGE (m1:Method { id: f[0] })
+                //                                        MERGE (m2:Method { id: f[1] })
+                //                                        CREATE (m1)-[:COLLAPSES]->(m2)"));
 
                 session.WriteTransaction(tx => tx.Run(@"LOAD CSV FROM ""file:///ics.csv"" as f
                                                         MERGE (m1:Method { id: f[0] })
                                                         MERGE (m2:Method { id: f[1] })
                                                         CREATE (ics:ICS  { 
-                                                            icslmin: toInt(f[ 2]), icslmax: toInt(f[ 3]), icslavg: toInt(f[ 4]), icslsum: toInt(f[ 5]),
-                                                            icscmin: toInt(f[ 6]), icscmax: toInt(f[ 7]), icscavg: toInt(f[ 8]), icscsum: toInt(f[ 9]),
-                                                            icskmin: toInt(f[10]), icskmax: toInt(f[11]), icskavg: toInt(f[12]), icsksum: toInt(f[13])
+                                                            icslmin: toInt(f[ 2]), icslmax: toInt(f[ 3]), icslavg: toInt(f[ 4]), icslsum: toInt(f[ 5]), icslnet: toInt(f[ 6]),
+                                                            icscmin: toInt(f[ 7]), icscmax: toInt(f[ 8]), icscavg: toInt(f[ 9]), icscsum: toInt(f[10]), icscnet: toInt(f[11]),
+                                                            icskmin: toInt(f[12]), icskmax: toInt(f[13]), icskavg: toInt(f[14]), icsksum: toInt(f[15]), icsknet: toInt(f[16])
                                                         })
                                                         CREATE (m1)-[:ICS]->(ics)-[:ICS]->(m2)"));
 
@@ -1359,39 +1550,47 @@ namespace ProjectParser
             foreach (KeyValuePair<string, JsonMethod> entry in JsonMethod.Methods)
             {
                 JsonMethod m = entry.Value;
-                methodsSW.WriteLine(String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0},{5},{6},{7}," +
-                    "{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19}," +
-                    "{20},{21},{22},{23},{24},{25},{26},{27},{28},{29},{30},{31}," +
-                    "{32},{33},{34},{35},{36},{37},{38},{39}", 
-                    project.Name, m.Id, "\""+m.Fullname+"\"", m.ClassId, m.NamespaceId, m.Loc, m.Cyc, m.Kon,
-                    m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fsum,
-                    m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bsum,
-                    m.Cyc_metrics.Fmin, m.Cyc_metrics.Fmax, m.Cyc_metrics.Favg, m.Cyc_metrics.Fsum,
-                    m.Cyc_metrics.Bmin, m.Cyc_metrics.Bmax, m.Cyc_metrics.Bavg, m.Cyc_metrics.Bsum,
-                    m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fsum,
-                    m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bsum,
-                    m.IsMethod?"1":"0", m.IsCollapsed?"1":"0", m.IsRecursive?"1":"0", m.IsScc?"1":"0",
-                    m.IsCollapsed?m.SccId:0, m.Calls.Count, m.CalledBy.Count, "\""+m.Name+ "\""));
-
-                foreach (JsonCall c in m.Calls)
+                if (m.IsCollapsed == false)
                 {
-                    callsSW.WriteLine(String.Format(@"{0}{1},{0}{2}", project.Name, m.Id, c.Id));
+                    methodsSW.WriteLine(String.Format(@"{0}{1},{2},{0}{3},{0}{4},{0},{5},{6},{7}," +
+                    "{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19},{20},{21},{22}," +
+                    "{23},{24},{25},{26},{27},{28},{29},{30},{31},{32},{33},{34},{35},{36},{37}," +
+                    "{38},{39},{40},{41},{42},{43},{44},{45}",
+                    project.Name, m.Id, "\"" + m.Fullname + "\"", m.ClassId, m.NamespaceId, m.Loc, m.Cyc, m.Kon,
+                    m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fsum, m.Loc_metrics.Fnet,
+                    m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bsum, m.Loc_metrics.Bnet,
+                    m.Cyc_metrics.Fmin, m.Cyc_metrics.Fmax, m.Cyc_metrics.Favg, m.Cyc_metrics.Fsum, m.Cyc_metrics.Fnet,
+                    m.Cyc_metrics.Bmin, m.Cyc_metrics.Bmax, m.Cyc_metrics.Bavg, m.Cyc_metrics.Bsum, m.Cyc_metrics.Bnet,
+                    m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fsum, m.Kon_metrics.Fnet,
+                    m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bsum, m.Kon_metrics.Bnet,
+                    m.IsMethod ? "1" : "0", m.IsCollapsed ? "1" : "0", m.IsRecursive ? "1" : "0", m.IsScc ? "1" : "0",
+                    m.IsCollapsed ? m.SccId : 0, m.Calls.Count, m.CalledBy.Count, "\"" + m.Name + "\""));
+
+                    if (m.WasProcessed == false)
+                    {
+                        Console.WriteLine("Method " + m.Fullname + " was not processed!");
+                    }
+
+                    foreach (JsonCall c in m.Calls)
+                    {
+                        callsSW.WriteLine(String.Format(@"{0}{1},{0}{2}", project.Name, m.Id, c.Id));
+                    }
                 }
             }
 
             foreach (JsonMethod m in JsonMethod.SccList)
             {
                 sccsSW.WriteLine(String.Format(@"{0}{1},{2},{3},{4},{0},{5},{6},{7}," +
-                    "{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19}," +
-                    "{20},{21},{22},{23},{24},{25},{26},{27},{28},{29},{30},{31}," +
-                    "{32},{33},{34},{35},{36},{37},{38},{39}",
+                    "{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19},{20},{21},{22}," +
+                    "{23},{24},{25},{26},{27},{28},{29},{30},{31},{32},{33},{34},{35},{36},{37}," +
+                    "{38},{39},{40},{41},{42},{43},{44},{45}",
                     project.Name, m.Id, m.Fullname, "", "", m.Loc, m.Cyc, m.Kon,
-                    m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fsum,
-                    m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bsum,
-                    m.Cyc_metrics.Fmin, m.Cyc_metrics.Fmax, m.Cyc_metrics.Favg, m.Cyc_metrics.Fsum,
-                    m.Cyc_metrics.Bmin, m.Cyc_metrics.Bmax, m.Cyc_metrics.Bavg, m.Cyc_metrics.Bsum,
-                    m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fsum,
-                    m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bsum,
+                    m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fsum, m.Loc_metrics.Fnet,
+                    m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bsum, m.Loc_metrics.Bnet,
+                    m.Cyc_metrics.Fmin, m.Cyc_metrics.Fmax, m.Cyc_metrics.Favg, m.Cyc_metrics.Fsum, m.Cyc_metrics.Fnet,
+                    m.Cyc_metrics.Bmin, m.Cyc_metrics.Bmax, m.Cyc_metrics.Bavg, m.Cyc_metrics.Bsum, m.Cyc_metrics.Bnet,
+                    m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fsum, m.Kon_metrics.Fnet,
+                    m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bsum, m.Kon_metrics.Bnet,
                     m.IsMethod?"1":"0", m.IsCollapsed?"1":"0", m.IsRecursive?"1":"0", m.IsScc?"1":"0",
                     m.IsCollapsed?m.SccId:0, m.Calls.Count, m.CalledBy.Count, m.Name));
 
@@ -1420,6 +1619,21 @@ namespace ProjectParser
             collapsesSW.Close();
             collapsesSW.Dispose();
 
+            foreach (Tuple<int, int, PairMetrics> t in JsonMethod.PairMetrics)
+            {
+                int m1 = t.Item1;
+                int m2 = t.Item2;
+                PairMetrics pair = t.Item3;
+
+                icsSW.WriteLine(String.Format(@"{0}{1},{0}{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},{13},{14},{15},{16},{17}",
+                    project.Name, m1, m2,
+                    pair.L.Fmin, pair.L.Fmax, pair.L.Favg, pair.L.Fsum, pair.L.Fnet,
+                    pair.C.Fmin, pair.C.Fmax, pair.C.Favg, pair.C.Fsum, pair.C.Fnet,
+                    pair.K.Fmin, pair.K.Fmax, pair.K.Favg, pair.K.Fsum, pair.K.Fnet));
+            }
+
+            // TODO: write pairs
+            /*
             for (int m1 = 0; m1 < JsonMethod.MaxMethods; m1++)
                 for (int m2 = 0; m2 < JsonMethod.MaxMethods; m2++)
                     if (m1 != m2 && JsonMethod.PairMetricsList.IsCellPresent(m1, m2))
@@ -1431,6 +1645,7 @@ namespace ProjectParser
                             pair.C.Fmin, pair.C.Fmax, pair.C.Favg, pair.C.Fsum,
                             pair.K.Fmin, pair.K.Fmax, pair.K.Favg, pair.K.Fsum));
                     }
+                    */
             icsSW.Flush();
             icsSW.Close();
             icsSW.Dispose();
@@ -1503,7 +1718,7 @@ namespace ProjectParser
             output.Write(query);
             output.Flush();
             Console.WriteLine("Finish");
-            Console.ReadLine();
+            //Console.ReadLine();
 
         }
     }

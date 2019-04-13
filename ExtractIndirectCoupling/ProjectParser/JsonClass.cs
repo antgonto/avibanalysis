@@ -116,7 +116,9 @@ namespace ProjectParser
         {
             JsonClass oclass;
 
-            if (!classes.TryGetValue(onamespace + "." + name, out oclass))
+            String ns = (onamespace.Length == 0 ? "" : onamespace + ".");
+
+            if (!classes.TryGetValue(ns + name, out oclass))
             {
                 return null;
             }
@@ -165,7 +167,7 @@ namespace ProjectParser
                     if (caller.Id != m.Id)
                     {
                         JsonCall calleeEntry = new JsonCall(m.Id, m.Name, m.ClassId, m.ClassName, m.NamespaceId, m.NamespaceName, m);
-                        if (!callee.CalledBy.Contains(callerEntry)) callee.CalledBy.Add(callerEntry);
+                        if (!m.CalledBy.Contains(callerEntry)) m.CalledBy.Add(callerEntry);
                         if (!caller.Calls.Contains(calleeEntry)) caller.Calls.Add(calleeEntry);
                     }
                 }
