@@ -9,12 +9,15 @@ using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
 using System.Threading;
 
+using ArchiMetrics.Analysis;
 
 using System.Windows.Forms;
 using System.Reflection;
 using Newtonsoft.Json;
 using Neo4j.Driver.V1;
 using System.Diagnostics;
+using ArchiMetrics.Analysis.Common;
+using System.Threading.Tasks;
 
 //Tools> Nugget>Console
 // Install-Package Microsoft.CodeAnalysis
@@ -36,15 +39,40 @@ namespace ProjectParser
         }
         static int cantidadClases = 0;
 
+        private static async Task Run()
+        {
+            Console.WriteLine("Loading Solution");
+            var solutionProvider = new SolutionProvider();
+            var solution = await solutionProvider.Get(@"C:\Users\jnavas\source\repos\DCI-SLN\DCI_SIA\DCI_SIA.sln");
+            Console.WriteLine("Solution loaded");
+
+            var projects = solution.Projects.ToList();
+
+            Console.WriteLine("Loading metrics, wait it may take a while.");
+            var metricsCalculator = new CodeMetricsCalculator();
+            var calculateTasks = projects.Select(p => metricsCalculator.Calculate(p, solution));
+            var metrics = (await Task.WhenAll(calculateTasks)).SelectMany(nm => nm);
+            foreach (var metric in metrics)
+                Console.WriteLine("{0} => {1}", metric.Name, metric.CyclomaticComplexity);
+        }
+
         [STAThread]
         public static void Main(string[] args)
         {
             //Metrics();
 
+            /*
+            var task = Run();
+            task.Wait();
+            Console.ReadKey();
+            */
+
+            
             if (args.Length == 0)
                 LoadProject(null, null);
             else if (args.Length == 2)
                 LoadProject(args[0], args[1]);
+            
         }
 
         private static SyntaxNode FindMethod(SyntaxNode obj)
@@ -108,6 +136,19 @@ namespace ProjectParser
             return obj == null ? null : (obj as NamespaceDeclarationSyntax);
         }
 
+        private static double CalculateMaintainablityIndex(double cyclomaticComplexity, double linesOfCode, IHalsteadMetrics halsteadMetrics)
+        {
+            if (linesOfCode.Equals(0.0) || halsteadMetrics.NumberOfOperands.Equals(0) || halsteadMetrics.NumberOfOperators.Equals(0))
+            {
+                return 100.0;
+            }
+
+            var num = Math.Log(halsteadMetrics.GetVolume());
+            var mi = ((171 - (5.2 * num) - (0.23 * cyclomaticComplexity) - (16.2 * Math.Log(linesOfCode))) * 100) / 171;
+
+            return Math.Max(0.0, mi);
+        }
+
         [STAThread]
         private static void ExtractGraphFromAST(JsonProject project, Compilation myCompilation, string path)
         {
@@ -143,22 +184,35 @@ namespace ProjectParser
                 foreach (MethodDeclarationSyntax declaracionDeMetodoActual in declarationSyntax)
                 {
                     //Calculations of each method 
-                    int start = 0, end = 0, lines = 0, cyclomatic = 0;
+                    //int start = 0, end = 0;
+                    int lines = 0, cyclomatic = 0;
+                    IHalsteadMetrics halstead;
+                    double mi;
                     //output.WriteLine(declaracionDeMetodoActual.Identifier.ToString());
 
-                    cyclomatic = calcularComplejidadCiclomatica(declaracionDeMetodoActual);
-                    if (declaracionDeMetodoActual.Body != null)
-                    {
-                        start = declaracionDeMetodoActual.Body.SyntaxTree.GetLineSpan(declaracionDeMetodoActual.FullSpan).StartLinePosition.Line;
-                        end = declaracionDeMetodoActual.Body.SyntaxTree.GetLineSpan(declaracionDeMetodoActual.FullSpan).EndLinePosition.Line;
-                        lines = end - start;
-                    }
-                    else
-                    {
-                        lines = 1;
-                        cyclomatic = 1;
+                    CyclomaticComplexityCounter cycCounter = new CyclomaticComplexityCounter();
+                    cyclomatic = cycCounter.Calculate(declaracionDeMetodoActual, semanticModels[i]);
 
-                    }
+                    LinesOfCodeCalculator locCounter = new LinesOfCodeCalculator();
+                    lines = locCounter.Calculate(declaracionDeMetodoActual);
+
+                    HalsteadAnalyzer analyzer = new HalsteadAnalyzer();
+                    halstead = analyzer.Calculate(declaracionDeMetodoActual);
+                    mi = CalculateMaintainablityIndex(cyclomatic, lines, halstead);
+
+                    //cyclomatic = calcularComplejidadCiclomatica(declaracionDeMetodoActual);
+                    //if (declaracionDeMetodoActual.Body != null)
+                    //{
+                    //    start = declaracionDeMetodoActual.Body.SyntaxTree.GetLineSpan(declaracionDeMetodoActual.FullSpan).StartLinePosition.Line;
+                    //    end = declaracionDeMetodoActual.Body.SyntaxTree.GetLineSpan(declaracionDeMetodoActual.FullSpan).EndLinePosition.Line;
+                    //    lines = end - start;
+                    //}
+                    //else
+                    //{
+                    //    lines = 1;
+                    //    cyclomatic = 1;
+                    //
+                    //}
 
                     SyntaxNode classDec = FindClass(declaracionDeMetodoActual);
                     NamespaceDeclarationSyntax namespaceDec = FindNamespace(classDec);
@@ -172,7 +226,9 @@ namespace ProjectParser
                             classDec is InterfaceDeclarationSyntax,
                             lines,
                             1,
-                            cyclomatic);
+                            cyclomatic,
+                            halstead,
+                            mi);
 
                         //if (m.Name.StartsWith("UsingImplicitSession(") && m.ClassName.Equals("MongoClient"))
                         //{
@@ -259,6 +315,13 @@ namespace ProjectParser
                     SyntaxNode classDec = FindClass(methodDec);
                     NamespaceDeclarationSyntax namespaceDec = FindNamespace(classDec);
                     ISymbol symbol = semanticModels[i].GetSymbolInfo(invocation).Symbol;
+
+                    if (symbol == null)
+                    {
+                        bool stop = true;
+                        if (stop) stop = false;
+                        string errortype = "none";
+                    }
 
                     //if (methodDec != null && classDec != null)
                     //{
@@ -420,6 +483,16 @@ namespace ProjectParser
             if (loadNeo4jOnly == false)
                 myCompilation = CreateTestCompilation(p);//Llama a la clase para crear la lista de archivos
 
+            //System.IO.StreamWriter diag_output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\output\diagnostics.txt");
+
+            //foreach (Diagnostic d in myCompilation.GetDiagnostics())
+            //{
+            //    diag_output.WriteLine(d.ToString());
+
+            //}
+            //diag_output.Flush();
+            //diag_output.Close();
+
             bool run = true;
 
             string output_path = o;
@@ -456,6 +529,7 @@ namespace ProjectParser
                     timer.Stop();
                     Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
 
+                SaveNeo4JGraph(project);
                     Console.Write("Collecting SCC Metrics using DFS...");
                     timer.Reset(); timer.Start();
                     JsonMethod.CollectSccMetricsUsingDFS();
@@ -519,7 +593,6 @@ namespace ProjectParser
                 /**/
                 Console.Write("Saving graph with metrics in neo4j...");
                 timer.Reset(); timer.Start();
-                SaveNeo4JGraph(project);
                 timer.Stop();
                 Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
                 /**/
@@ -1721,6 +1794,671 @@ namespace ProjectParser
             //Console.ReadLine();
 
         }
+
+
+        private class CyclomaticComplexityCounter
+        {
+            public int Calculate(SyntaxNode node, SemanticModel semanticModel)
+            {
+                var analyzer = new InnerComplexityAnalyzer(semanticModel);
+                var result = analyzer.Calculate(node);
+
+                return result;
+            }
+
+            private class InnerComplexityAnalyzer : CSharpSyntaxWalker
+            {
+                private static readonly SyntaxKind[] Contributors = new[]
+                                                                    {
+                                                                    SyntaxKind.CaseSwitchLabel,
+                                                                    SyntaxKind.CoalesceExpression,
+                                                                    SyntaxKind.ConditionalExpression,
+                                                                    SyntaxKind.LogicalAndExpression,
+                                                                    SyntaxKind.LogicalOrExpression,
+                                                                    SyntaxKind.LogicalNotExpression
+                                                                };
+
+                // private static readonly string[] LazyTypes = new[] { "System.Threading.Tasks.Task" };
+                private readonly SemanticModel _semanticModel;
+                private int _counter;
+
+                public InnerComplexityAnalyzer(SemanticModel semanticModel)
+                    : base(SyntaxWalkerDepth.Node)
+                {
+                    _semanticModel = semanticModel;
+                    _counter = 1;
+                }
+
+                public int Calculate(SyntaxNode syntax)
+                {
+                    if (syntax != null)
+                    {
+                        Visit(syntax);
+                    }
+
+                    return _counter;
+                }
+
+                public override void Visit(SyntaxNode node)
+                {
+                    base.Visit(node);
+                    if (Contributors.Contains(node.Kind()))
+                    {
+                        _counter++;
+                    }
+                }
+
+                public override void VisitWhileStatement(WhileStatementSyntax node)
+                {
+                    base.VisitWhileStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitForStatement(ForStatementSyntax node)
+                {
+                    base.VisitForStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitForEachStatement(ForEachStatementSyntax node)
+                {
+                    base.VisitForEachStatement(node);
+                    _counter++;
+                }
+
+                //// TODO: Calculate for tasks
+                ////public override void VisitInvocationExpression(InvocationExpressionSyntax node)
+                ////{
+                ////	if (_semanticModel != null)
+                ////	{
+                ////		var symbol = _semanticModel.GetSymbolInfo(node).Symbol;
+                ////		if (symbol != null)
+                ////		{
+                ////			switch (symbol.Kind)
+                ////			{
+                ////				case SymbolKind.Method:
+                ////					var returnType = ((IMethodSymbol)symbol).ReturnType;
+                ////					break;
+                ////			}
+                ////		}
+                ////	}
+                ////	base.VisitInvocationExpression(node);
+                ////}
+
+                ////	base.VisitInvocationExpression(node);
+                ////}
+                public override void VisitArgument(ArgumentSyntax node)
+                {
+                    switch (node.Expression.Kind())
+                    {
+                        case SyntaxKind.ParenthesizedLambdaExpression:
+                            {
+                                var lambda = (ParenthesizedLambdaExpressionSyntax)node.Expression;
+                                Visit(lambda.Body);
+                            }
+
+                            break;
+                        case SyntaxKind.SimpleLambdaExpression:
+                            {
+                                var lambda = (SimpleLambdaExpressionSyntax)node.Expression;
+                                Visit(lambda.Body);
+                            }
+
+                            break;
+                    }
+
+                    base.VisitArgument(node);
+                }
+
+                public override void VisitDefaultExpression(DefaultExpressionSyntax node)
+                {
+                    base.VisitDefaultExpression(node);
+                    _counter++;
+                }
+
+                public override void VisitContinueStatement(ContinueStatementSyntax node)
+                {
+                    base.VisitContinueStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitGotoStatement(GotoStatementSyntax node)
+                {
+                    base.VisitGotoStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitIfStatement(IfStatementSyntax node)
+                {
+                    base.VisitIfStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitCatchClause(CatchClauseSyntax node)
+                {
+                    base.VisitCatchClause(node);
+                    _counter++;
+                }
+            }
+        }
+
+        private class LinesOfCodeCalculator
+        {
+            public int Calculate(SyntaxNode node)
+            {
+                var innerCalculator = new InnerLinesOfCodeCalculator();
+                return innerCalculator.Calculate(node);
+            }
+
+            private class InnerLinesOfCodeCalculator : CSharpSyntaxWalker
+            {
+                private int _counter;
+
+                public InnerLinesOfCodeCalculator()
+                    : base(SyntaxWalkerDepth.Node)
+                {
+                }
+
+                public int Calculate(SyntaxNode node)
+                {
+                    if (node != null)
+                    {
+                        Visit(node);
+                    }
+
+                    return Math.Max(1, _counter);
+                }
+
+                public override void VisitCheckedStatement(CheckedStatementSyntax node)
+                {
+                    base.VisitCheckedStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitDoStatement(DoStatementSyntax node)
+                {
+                    base.VisitDoStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitEmptyStatement(EmptyStatementSyntax node)
+                {
+                    base.VisitEmptyStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitExpressionStatement(ExpressionStatementSyntax node)
+                {
+                    base.VisitExpressionStatement(node);
+                    _counter++;
+                }
+
+                /// <summary>
+                /// Called when the visitor visits a AccessorDeclarationSyntax node.
+                /// </summary>
+                public override void VisitAccessorDeclaration(AccessorDeclarationSyntax node)
+                {
+                    if (node.Body == null)
+                    {
+                        _counter++;
+                    }
+
+                    base.VisitAccessorDeclaration(node);
+                }
+
+                public override void VisitFixedStatement(FixedStatementSyntax node)
+                {
+                    base.VisitFixedStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitForEachStatement(ForEachStatementSyntax node)
+                {
+                    base.VisitForEachStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitForStatement(ForStatementSyntax node)
+                {
+                    base.VisitForStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitGlobalStatement(GlobalStatementSyntax node)
+                {
+                    base.VisitGlobalStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitGotoStatement(GotoStatementSyntax node)
+                {
+                    base.VisitGotoStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitIfStatement(IfStatementSyntax node)
+                {
+                    base.VisitIfStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitInitializerExpression(InitializerExpressionSyntax node)
+                {
+                    base.VisitInitializerExpression(node);
+                    _counter += node.Expressions.Count;
+                }
+
+                public override void VisitLabeledStatement(LabeledStatementSyntax node)
+                {
+                    base.VisitLabeledStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitLocalDeclarationStatement(LocalDeclarationStatementSyntax node)
+                {
+                    base.VisitLocalDeclarationStatement(node);
+                    if (!node.Modifiers.Any(SyntaxKind.ConstKeyword))
+                    {
+                        _counter++;
+                    }
+                }
+
+                public override void VisitLockStatement(LockStatementSyntax node)
+                {
+                    base.VisitLockStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitReturnStatement(ReturnStatementSyntax node)
+                {
+                    base.VisitReturnStatement(node);
+                    if (node.Expression != null)
+                    {
+                        _counter++;
+                    }
+                }
+
+                public override void VisitSwitchStatement(SwitchStatementSyntax node)
+                {
+                    base.VisitSwitchStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitThrowStatement(ThrowStatementSyntax node)
+                {
+                    base.VisitThrowStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitUnsafeStatement(UnsafeStatementSyntax node)
+                {
+                    base.VisitUnsafeStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitUsingDirective(UsingDirectiveSyntax node)
+                {
+                    base.VisitUsingDirective(node);
+                    _counter++;
+                }
+
+                public override void VisitUsingStatement(UsingStatementSyntax node)
+                {
+                    base.VisitUsingStatement(node);
+                    _counter++;
+                }
+
+                /// <summary>
+                /// Called when the visitor visits a ConstructorDeclarationSyntax node.
+                /// </summary>
+                public override void VisitConstructorDeclaration(ConstructorDeclarationSyntax node)
+                {
+                    base.VisitConstructorDeclaration(node);
+                    _counter++;
+                }
+
+                public override void VisitWhileStatement(WhileStatementSyntax node)
+                {
+                    base.VisitWhileStatement(node);
+                    _counter++;
+                }
+
+                public override void VisitYieldStatement(YieldStatementSyntax node)
+                {
+                    base.VisitYieldStatement(node);
+                    _counter++;
+                }
+            }
+        }
+
+        private class HalsteadMetrics : IHalsteadMetrics
+        {
+            public static readonly IHalsteadMetrics GenericInstanceGetPropertyMetrics;
+            public static readonly IHalsteadMetrics GenericInstanceSetPropertyMetrics;
+            public static readonly IHalsteadMetrics GenericStaticGetPropertyMetrics;
+            public static readonly IHalsteadMetrics GenericStaticSetPropertyMetrics;
+
+            static HalsteadMetrics()
+            {
+                GenericInstanceSetPropertyMetrics = new HalsteadMetrics(5, 3, 4, 3);
+                GenericStaticSetPropertyMetrics = new HalsteadMetrics(4, 3, 3, 3);
+                GenericInstanceGetPropertyMetrics = new HalsteadMetrics(3, 2, 3, 2);
+                GenericStaticGetPropertyMetrics = new HalsteadMetrics(2, 1, 2, 1);
+            }
+
+            public HalsteadMetrics(int numOperands, int numOperators, int numUniqueOperands, int numUniqueOperators)
+            {
+                NumberOfOperands = numOperands;
+                NumberOfOperators = numOperators;
+                NumberOfUniqueOperands = numUniqueOperands;
+                NumberOfUniqueOperators = numUniqueOperators;
+            }
+
+            public int NumberOfOperands { get; }
+
+            public int NumberOfOperators { get; }
+
+            public int NumberOfUniqueOperands { get; }
+
+            public int NumberOfUniqueOperators { get; }
+
+            public IHalsteadMetrics Merge(IHalsteadMetrics other)
+            {
+                if (other == null)
+                {
+                    return this;
+                }
+
+                return new HalsteadMetrics(
+                    NumberOfOperands + other.NumberOfOperands,
+                    NumberOfOperators + other.NumberOfOperators,
+                    NumberOfUniqueOperands + other.NumberOfUniqueOperands,
+                    NumberOfUniqueOperators + other.NumberOfUniqueOperators);
+            }
+
+            public int GetBugs()
+            {
+                var volume = GetVolume();
+
+                return (int)(volume / 3000);
+            }
+
+            public double GetDifficulty()
+            {
+                return NumberOfUniqueOperands == 0
+                    ? 0
+                    : ((NumberOfUniqueOperators / 2.0) * (NumberOfOperands / ((double)NumberOfUniqueOperands)));
+            }
+
+            public TimeSpan GetEffort()
+            {
+                var effort = GetDifficulty() * GetVolume();
+                return TimeSpan.FromSeconds(effort / 18.0);
+            }
+
+            public int GetLength()
+            {
+                return NumberOfOperators + NumberOfOperands;
+            }
+
+            public int GetVocabulary()
+            {
+                return NumberOfUniqueOperators + NumberOfUniqueOperands;
+            }
+
+            public double GetVolume()
+            {
+                const double newBase = 2.0;
+                double vocabulary = GetVocabulary();
+                double length = GetLength();
+                if (vocabulary.Equals(0.0))
+                {
+                    return 0.0;
+                }
+
+                return length * Math.Log(vocabulary, newBase);
+            }
+        }
+
+
+        private class HalsteadAnalyzer : SyntaxWalker
+        {
+            private IHalsteadMetrics _metrics = new HalsteadMetrics(0, 0, 0, 0);
+
+            public HalsteadAnalyzer()
+                : base(SyntaxWalkerDepth.Node)
+            {
+            }
+
+            public IHalsteadMetrics Calculate(SyntaxNode syntax)
+            {
+                if (syntax != null)
+                {
+                    Visit(syntax);
+                    return _metrics;
+                }
+
+                return _metrics;
+            }
+
+            /// <summary>
+            /// Called when the walker visits a node.  This method may be overridden if subclasses want to handle the node.  Overrides should call back into this base method if they want the children of this node to be visited.
+            /// </summary>
+            /// <param name="node">The current node that the walker is visiting.</param>
+            public override void Visit(SyntaxNode node)
+            {
+                var blockSyntax = node as BlockSyntax;
+                if (blockSyntax != null)
+                {
+                    VisitBlock(blockSyntax);
+                }
+
+                base.Visit(node);
+            }
+
+            public void VisitBlock(BlockSyntax node)
+            {
+                var tokens = node.DescendantTokens().ToList();
+                var dictionary = ParseTokens(tokens, Operands.All);
+                var dictionary2 = ParseTokens(tokens, Operators.All);
+                var metrics = new HalsteadMetrics(
+                    numOperands: dictionary.Values.Sum(x => x.Count),
+                    numUniqueOperands: dictionary.Values.SelectMany(x => x).Distinct().Count(),
+                    numOperators: dictionary2.Values.Sum(x => x.Count),
+                    numUniqueOperators: dictionary2.Values.SelectMany(x => x).Distinct().Count());
+                _metrics = metrics;
+            }
+
+            private static IDictionary<SyntaxKind, IList<string>> ParseTokens(IEnumerable<SyntaxToken> tokens, IEnumerable<SyntaxKind> filter)
+            {
+                IDictionary<SyntaxKind, IList<string>> dictionary = new Dictionary<SyntaxKind, IList<string>>();
+                foreach (var token in tokens)
+                {
+                    var kind = token.Kind();
+                    if (filter.Any(x => x == kind))
+                    {
+                        IList<string> list;
+                        var valueText = token.ValueText;
+                        if (!dictionary.TryGetValue(kind, out list))
+                        {
+                            dictionary[kind] = new List<string>();
+                            list = dictionary[kind];
+                        }
+
+                        list.Add(valueText);
+                    }
+                }
+
+                return dictionary;
+            }
+        }
+
+
+        private class Operands
+        {
+            public static readonly IEnumerable<SyntaxKind> All = new[]
+                                                                     {
+                                                                     SyntaxKind.IdentifierToken,
+                                                                     SyntaxKind.StringLiteralToken,
+                                                                     SyntaxKind.NumericLiteralToken,
+                                                                     SyntaxKind.AddKeyword,
+                                                                     SyntaxKind.AliasKeyword,
+                                                                     SyntaxKind.AscendingKeyword,
+                                                                     SyntaxKind.AsKeyword,
+                                                                     SyntaxKind.AsyncKeyword,
+                                                                     SyntaxKind.AwaitKeyword,
+                                                                     SyntaxKind.BaseKeyword,
+                                                                     SyntaxKind.BoolKeyword,
+                                                                     SyntaxKind.BreakKeyword,
+                                                                     SyntaxKind.ByKeyword,
+                                                                     SyntaxKind.ByteKeyword,
+                                                                     SyntaxKind.CaseKeyword,
+                                                                     SyntaxKind.CatchKeyword,
+                                                                     SyntaxKind.CharKeyword,
+                                                                     SyntaxKind.CheckedKeyword,
+                                                                     SyntaxKind.ChecksumKeyword,
+                                                                     SyntaxKind.ClassKeyword,
+                                                                     SyntaxKind.ConstKeyword,
+                                                                     SyntaxKind.ContinueKeyword,
+                                                                     SyntaxKind.DecimalKeyword,
+                                                                     SyntaxKind.DefaultKeyword,
+                                                                     SyntaxKind.DefineKeyword,
+                                                                     SyntaxKind.DelegateKeyword,
+                                                                     SyntaxKind.DescendingKeyword,
+                                                                     SyntaxKind.DisableKeyword,
+                                                                     SyntaxKind.DoKeyword,
+                                                                     SyntaxKind.DoubleKeyword,
+                                                                     SyntaxKind.ElifKeyword,
+                                                                     SyntaxKind.ElseKeyword,
+                                                                     SyntaxKind.EndIfKeyword,
+                                                                     SyntaxKind.EndRegionKeyword,
+                                                                     SyntaxKind.EnumKeyword,
+                                                                     SyntaxKind.EqualsKeyword,
+                                                                     SyntaxKind.ErrorKeyword,
+                                                                     SyntaxKind.EventKeyword,
+                                                                     SyntaxKind.ExplicitKeyword,
+                                                                     SyntaxKind.ExternKeyword,
+                                                                     SyntaxKind.FalseKeyword,
+                                                                     SyntaxKind.FieldKeyword,
+                                                                     SyntaxKind.FinallyKeyword,
+                                                                     SyntaxKind.FixedKeyword,
+                                                                     SyntaxKind.FloatKeyword,
+                                                                     SyntaxKind.ForEachKeyword,
+                                                                     SyntaxKind.ForKeyword,
+                                                                     SyntaxKind.FromKeyword,
+                                                                     SyntaxKind.GetKeyword,
+                                                                     SyntaxKind.GlobalKeyword,
+                                                                     SyntaxKind.GotoKeyword,
+                                                                     SyntaxKind.GroupKeyword,
+                                                                     SyntaxKind.HiddenKeyword,
+                                                                     SyntaxKind.IfKeyword,
+                                                                     SyntaxKind.ImplicitKeyword,
+                                                                     SyntaxKind.InKeyword,
+                                                                     SyntaxKind.InterfaceKeyword,
+                                                                     SyntaxKind.InternalKeyword,
+                                                                     SyntaxKind.IntKeyword,
+                                                                     SyntaxKind.IntoKeyword,
+                                                                     SyntaxKind.IsKeyword,
+                                                                     SyntaxKind.JoinKeyword,
+                                                                     SyntaxKind.LetKeyword,
+                                                                     SyntaxKind.LineKeyword,
+                                                                     SyntaxKind.LockKeyword,
+                                                                     SyntaxKind.LongKeyword,
+                                                                     SyntaxKind.MakeRefKeyword,
+                                                                     SyntaxKind.MethodKeyword,
+                                                                     SyntaxKind.ModuleKeyword,
+                                                                     SyntaxKind.NamespaceKeyword,
+                                                                     SyntaxKind.NullKeyword,
+                                                                     SyntaxKind.ObjectKeyword,
+                                                                     SyntaxKind.OnKeyword,
+                                                                     SyntaxKind.OperatorKeyword,
+                                                                     SyntaxKind.OrderByKeyword,
+                                                                     SyntaxKind.OutKeyword,
+                                                                     SyntaxKind.OverrideKeyword,
+                                                                     SyntaxKind.ParamKeyword,
+                                                                     SyntaxKind.ParamsKeyword,
+                                                                     SyntaxKind.PartialKeyword,
+                                                                     SyntaxKind.PragmaKeyword,
+                                                                     SyntaxKind.PrivateKeyword,
+                                                                     SyntaxKind.PropertyKeyword,
+                                                                     SyntaxKind.ProtectedKeyword,
+                                                                     SyntaxKind.PublicKeyword,
+                                                                     SyntaxKind.ReadOnlyKeyword,
+                                                                     SyntaxKind.ReferenceKeyword,
+                                                                     SyntaxKind.RefKeyword,
+                                                                     SyntaxKind.RefTypeKeyword,
+                                                                     SyntaxKind.RefValueKeyword,
+                                                                     SyntaxKind.RegionKeyword,
+                                                                     SyntaxKind.RemoveKeyword,
+                                                                     SyntaxKind.RestoreKeyword,
+                                                                     SyntaxKind.ReturnKeyword,
+                                                                     SyntaxKind.SByteKeyword,
+                                                                     SyntaxKind.SealedKeyword,
+                                                                     SyntaxKind.SelectKeyword,
+                                                                     SyntaxKind.SetKeyword,
+                                                                     SyntaxKind.ShortKeyword,
+                                                                     SyntaxKind.SizeOfKeyword,
+                                                                     SyntaxKind.StackAllocKeyword,
+                                                                     SyntaxKind.StaticKeyword,
+                                                                     SyntaxKind.StringKeyword,
+                                                                     SyntaxKind.StructKeyword,
+                                                                     SyntaxKind.SwitchKeyword,
+                                                                     SyntaxKind.ThisKeyword,
+                                                                     SyntaxKind.TrueKeyword,
+                                                                     SyntaxKind.TryKeyword,
+                                                                     SyntaxKind.TypeKeyword,
+                                                                     SyntaxKind.TypeOfKeyword,
+                                                                     SyntaxKind.TypeVarKeyword,
+                                                                     SyntaxKind.UIntKeyword,
+                                                                     SyntaxKind.ULongKeyword,
+                                                                     SyntaxKind.UncheckedKeyword,
+                                                                     SyntaxKind.UndefKeyword,
+                                                                     SyntaxKind.UnsafeKeyword,
+                                                                     SyntaxKind.UShortKeyword,
+                                                                     SyntaxKind.UsingKeyword,
+                                                                     SyntaxKind.VirtualKeyword,
+                                                                     SyntaxKind.VoidKeyword,
+                                                                     SyntaxKind.VolatileKeyword,
+                                                                     SyntaxKind.WarningKeyword,
+                                                                     SyntaxKind.WhereKeyword,
+                                                                     SyntaxKind.WhileKeyword,
+                                                                     SyntaxKind.YieldKeyword
+                                                                 };
+        }
+
+        private class Operators
+        {
+            public static readonly IEnumerable<SyntaxKind> All = new[]
+                                                                     {
+                                                                     SyntaxKind.DotToken,
+                                                                     SyntaxKind.EqualsToken,
+                                                                     SyntaxKind.SemicolonToken,
+                                                                     SyntaxKind.PlusPlusToken,
+                                                                     SyntaxKind.PlusToken,
+                                                                     SyntaxKind.PlusEqualsToken,
+                                                                     SyntaxKind.MinusMinusToken,
+                                                                     SyntaxKind.MinusToken,
+                                                                     SyntaxKind.MinusEqualsToken,
+                                                                     SyntaxKind.AsteriskToken,
+                                                                     SyntaxKind.AsteriskEqualsToken,
+                                                                     SyntaxKind.SlashToken,
+                                                                     SyntaxKind.SlashEqualsToken,
+                                                                     SyntaxKind.PercentToken,
+                                                                     SyntaxKind.PercentEqualsToken,
+                                                                     SyntaxKind.AmpersandToken,
+                                                                     SyntaxKind.BarToken,
+                                                                     SyntaxKind.CaretToken,
+                                                                     SyntaxKind.TildeToken,
+                                                                     SyntaxKind.ExclamationToken,
+                                                                     SyntaxKind.ExclamationEqualsToken,
+                                                                     SyntaxKind.GreaterThanToken,
+                                                                     SyntaxKind.GreaterThanEqualsToken,
+                                                                     SyntaxKind.LessThanToken,
+                                                                     SyntaxKind.LessThanEqualsToken
+                                                                 };
+        }
     }
+
+
 
 }

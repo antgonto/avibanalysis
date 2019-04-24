@@ -87,6 +87,8 @@ namespace ProjectParser
         int loc;
         int kon;
         int cyc;
+        double mi;
+        IHalsteadMetrics h;
 
         bool dfsFlag = false;
 
@@ -100,9 +102,10 @@ namespace ProjectParser
             this.Loc = 1;
             this.Kon = 1;
             this.Cyc = 1;
+            this.Mi = 1;
         }
 
-        public JsonMethod(int id, string name, JsonClass clase, JsonNamespace @namespace, int loc, int kon, int cyc)
+        public JsonMethod(int id, string name, JsonClass clase, JsonNamespace @namespace, int loc, int kon, int cyc, IHalsteadMetrics h, double mi)
         {
             this.id = id;
             this.name = name;
@@ -112,16 +115,18 @@ namespace ProjectParser
             this.Loc = loc;
             this.Kon = kon;
             this.Cyc = cyc;
+            this.H = h;
+            this.Mi = mi;
         }
 
-        public static JsonMethod GetMethod(string name, string oclass, string onamespace, bool isInterface, int loc, int kon, int cyc)
+        public static JsonMethod GetMethod(string name, string oclass, string onamespace, bool isInterface, int loc, int kon, int cyc, IHalsteadMetrics h, double mi)
         {
             JsonMethod method;
 
             if (!methods.TryGetValue(onamespace + "." + oclass + "." + name, out method))
             {
                 JsonClass c = JsonClass.GetClass(oclass, onamespace, isInterface);
-                method = new JsonMethod(JsonProject.Nextid++, name, c, JsonNamespace.GetNamespace(onamespace), loc, kon, cyc);
+                method = new JsonMethod(JsonProject.Nextid++, name, c, JsonNamespace.GetNamespace(onamespace), loc, kon, cyc, h, mi);
                 methods.Add(onamespace + "." + oclass + "." + name, method);
                 c.Methods.Add(method);
                 JsonMethod.cantidadMetodos++;
@@ -1815,6 +1820,8 @@ namespace ProjectParser
         public long MaxChainLen { get => maxChainLen; set => maxChainLen = value; }
         internal static List<Tuple<int, int, PairMetrics>> PairMetrics { get => pairMetrics; set => pairMetrics = value; }
         public bool WasProcessed { get => wasProcessed; set => wasProcessed = value; }
+        public double Mi { get => mi; set => mi = value; }
+        public IHalsteadMetrics H { get => h; set => h = value; }
 
         static BsonJavaScript map = new BsonJavaScript(@"
             function() {
@@ -2280,6 +2287,74 @@ namespace ProjectParser
         public System.Int64 promCalledby = 0;
         public string maxCallsToName = "";
         public string maxCalledByName = "";
+    }
+
+
+
+    public interface IHalsteadMetrics
+    {
+        /// <summary>
+        /// Gets the number of operands.
+        /// </summary>
+        int NumberOfOperands { get; }
+
+        /// <summary>
+        /// Gets the number of operators.
+        /// </summary>
+        int NumberOfOperators { get; }
+
+        /// <summary>
+        /// Gets the number of unique operands.
+        /// </summary>
+        int NumberOfUniqueOperands { get; }
+
+        /// <summary>
+        /// Gets the number of unique operators.
+        /// </summary>
+        int NumberOfUniqueOperators { get; }
+
+        /// <summary>
+        /// Gets the number of expected bugs in the underlying source code.
+        /// </summary>
+        /// <returns>The expected number of bugs as an <see cref="int"/>.</returns>
+        int GetBugs();
+
+        /// <summary>
+        /// Gets the difficulty of the underlying source code.
+        /// </summary>
+        /// <returns>The calculated difficulty of the underlying source code as a <see cref="double"/> value.</returns>
+        double GetDifficulty();
+
+        /// <summary>
+        /// Gets the estimated time to write the underlying source code.
+        /// </summary>
+        /// <returns>The estimated time as a <see cref="TimeSpan"/>.</returns>
+        TimeSpan GetEffort();
+
+        /// <summary>
+        /// Gets the length of the underlying souce code.
+        /// </summary>
+        /// <returns>The length as an <see cref="int"/>.</returns>
+        int GetLength();
+
+        /// <summary>
+        /// Gets the size of vocabulary of the underlying source code.
+        /// </summary>
+        /// <returns>The vocabulary size as an <see cref="int"/>.</returns>
+        int GetVocabulary();
+
+        /// <summary>
+        /// Gets the volume of the underlying source code.
+        /// </summary>
+        /// <returns>The volume as a <see cref="double"/>.</returns>
+        double GetVolume();
+
+        /// <summary>
+        /// Creates a new instance of an <see cref="IHalsteadMetrics"/> by merging another instance into the current.
+        /// </summary>
+        /// <param name="metrics">The other instance to merge.</param>
+        /// <returns>The new <see cref="IHalsteadMetrics"/> instance from the merged sources.</returns>
+        IHalsteadMetrics Merge(IHalsteadMetrics metrics);
     }
 
 }
