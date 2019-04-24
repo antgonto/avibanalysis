@@ -1,0 +1,7 @@
+C:\Users\Pablo Brenes\source\Repos\GeneracionDeGrafos\GeneracionDeGrafos\GeneracionDeGrafos\bin\Debug\GeneracionDeGrafos.exe.config
+C:\Users\Pablo Brenes\source\Repos\GeneracionDeGrafos\GeneracionDeGrafos\GeneracionDeGrafos\bin\Debug\GeneracionDeGrafos.exe
+C:\Users\Pablo Brenes\source\Repos\GeneracionDeGrafos\GeneracionDeGrafos\GeneracionDeGrafos\bin\Debug\GeneracionDeGrafos.pdb
+C:\Users\Pablo Brenes\source\Repos\GeneracionDeGrafos\GeneracionDeGrafos\GeneracionDeGrafos\obj\Debug\GeneracionDeGrafos.csprojAssemblyReference.cache
+C:\Users\Pablo Brenes\source\Repos\GeneracionDeGrafos\GeneracionDeGrafos\GeneracionDeGrafos\obj\Debug\GeneracionDeGrafos.csproj.CoreCompileInputs.cache
+C:\Users\Pablo Brenes\source\Repos\GeneracionDeGrafos\GeneracionDeGrafos\GeneracionDeGrafos\obj\Debug\GeneracionDeGrafos.exe
+C:\Users\Pablo Brenes\source\Repos\GeneracionDeGrafos\GeneracionDeGrafos\GeneracionDeGrafos\obj\Debug\GeneracionDeGrafos.pdb

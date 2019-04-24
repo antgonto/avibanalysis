@@ -1,0 +1,17 @@
+﻿/* Determina el número máximo de cadenas independientes que se podrían
+    * crear según la cantidad de clases, la máxima cantidad de métodos
+    * por clase y el largo mínimo de una cadena
+    */
+private int obtenerMaximaCantidadDeCadenasBase() {
+    Configuracion configuracion = Configuracion.Instacia;
+    return configuracion.CantidadDeClases * configuracion.MaximaCantidadDeMetodosPorClase / configuracion.MinimaLongitudDeCadena;
+}
+
+/* Determina el número mínimo de cadenas independientes que se podrían
+    * crear según la cantidad de clases, la mínima cantidad de métodos
+    * por clase y el largo máximo de una cadena
+    */
+private int obtenerMinimaCantidadDeCadenasBase() {
+    Configuracion configuracion = Configuracion.Instacia;
+    return configuracion.CantidadDeClases * configuracion.MinimaCantidadDeMetodosPorClase / configuracion.MaximaLongitudDeCadena;
+}
