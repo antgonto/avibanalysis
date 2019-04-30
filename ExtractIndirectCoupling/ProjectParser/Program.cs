@@ -5,12 +5,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Linq;
-using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
-using System.Threading;
-
-using ArchiMetrics.Analysis;
-
 using System.Windows.Forms;
 using System.Reflection;
 using Newtonsoft.Json;
@@ -18,6 +13,8 @@ using Neo4j.Driver.V1;
 using System.Diagnostics;
 using ArchiMetrics.Analysis.Common;
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis.MSBuild;
+using Microsoft.Build.Locator;
 
 //Tools> Nugget>Console
 // Install-Package Microsoft.CodeAnalysis
@@ -39,39 +36,13 @@ namespace ProjectParser
         }
         static int cantidadClases = 0;
 
-        private static async Task Run()
-        {
-            Console.WriteLine("Loading Solution");
-            var solutionProvider = new SolutionProvider();
-            var solution = await solutionProvider.Get(@"C:\Users\jnavas\source\repos\DCI-SLN\DCI_SIA\DCI_SIA.sln");
-            Console.WriteLine("Solution loaded");
-
-            var projects = solution.Projects.ToList();
-
-            Console.WriteLine("Loading metrics, wait it may take a while.");
-            var metricsCalculator = new CodeMetricsCalculator();
-            var calculateTasks = projects.Select(p => metricsCalculator.Calculate(p, solution));
-            var metrics = (await Task.WhenAll(calculateTasks)).SelectMany(nm => nm);
-            foreach (var metric in metrics)
-                Console.WriteLine("{0} => {1}", metric.Name, metric.CyclomaticComplexity);
-        }
-
         [STAThread]
         public static void Main(string[] args)
         {
-            //Metrics();
-
-            /*
-            var task = Run();
-            task.Wait();
-            Console.ReadKey();
-            */
-
-            
             if (args.Length == 0)
-                LoadProject(null, null);
+                LoadProjectAsync(null, null).Wait();
             else if (args.Length == 2)
-                LoadProject(args[0], args[1]);
+                LoadProjectAsync(args[0], args[1]).Wait();
             
         }
 
@@ -150,7 +121,7 @@ namespace ProjectParser
         }
 
         [STAThread]
-        private static void ExtractGraphFromAST(JsonProject project, Compilation myCompilation, string path)
+        private static void ExtractGraphFromAST(JsonProject project, List<Compilation> myCompilation, string path)
         {
             Dictionary<string, JsonMethod> nodoNamespacesNeo4J = new Dictionary<string, JsonMethod>();
             bool debug = false;
@@ -160,12 +131,14 @@ namespace ProjectParser
 
             List<SemanticModel> semanticModels = new List<SemanticModel>();
             List<SyntaxNode> roots = new List<SyntaxNode>();
-            project.Name = myCompilation.AssemblyName;
             
-            foreach (SyntaxTree sourceTree in myCompilation.SyntaxTrees)//Loop para recorrer la lista de archivos
+            foreach (Compilation compilation in myCompilation)
             {
-                roots.Add(sourceTree.GetRoot());//Obtiene el root de cada árbol de clase
-                semanticModels.Add(myCompilation.GetSemanticModel(sourceTree));//Se guarda los semantic models en el mismo orden de la lista
+                foreach (SyntaxTree sourceTree in compilation.SyntaxTrees)//Loop para recorrer la lista de archivos
+                {
+                    roots.Add(sourceTree.GetRoot());//Obtiene el root de cada árbol de clase
+                    semanticModels.Add(compilation.GetSemanticModel(sourceTree));//Se guarda los semantic models en el mismo orden de la lista
+                }
             }
 
             List<MethodDeclarationSyntax> declarationSyntax;
@@ -449,7 +422,7 @@ namespace ProjectParser
             return sig;
         }
 
-        private static void CloudUnattended()
+        private static async void CloudUnattendedAsync()
         {
             string[] projects = new string[10];
             projects[0] = @"C:\Users\jnavas05\Desktop\repos\sources\sources\industry\DCI";
@@ -467,31 +440,34 @@ namespace ProjectParser
 
             foreach (string p in projects)
             {
-                LoadProject(p, output_dir);
+                await LoadProjectAsync(p, output_dir);
             }
 
         }
 
-        private static void LoadProject(string p, string o)
+        private static async Task LoadProjectAsync(string p, string o)
         {
             JsonProject project = new JsonProject();
             JsonNamespace.Project = project;
 
             bool loadNeo4jOnly = false;
 
-            Compilation myCompilation = null;
+            List<Compilation> myCompilation = null;
             if (loadNeo4jOnly == false)
-                myCompilation = CreateTestCompilation(p);//Llama a la clase para crear la lista de archivos
+                myCompilation = await CreateTestCompilationAsync(p);//Llama a la clase para crear la lista de archivos
 
-            //System.IO.StreamWriter diag_output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\output\diagnostics.txt");
+            System.IO.StreamWriter diag_output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\output\diagnostics.txt");
 
-            //foreach (Diagnostic d in myCompilation.GetDiagnostics())
-            //{
-            //    diag_output.WriteLine(d.ToString());
+            foreach (Compilation compilation in myCompilation)
+            {
+                foreach (Diagnostic d in compilation.GetDiagnostics())
+                {
+                    diag_output.WriteLine(d.ToString());
 
-            //}
-            //diag_output.Flush();
-            //diag_output.Close();
+                }
+            }
+            diag_output.Flush();
+            diag_output.Close();
 
             bool run = true;
 
@@ -529,7 +505,6 @@ namespace ProjectParser
                     timer.Stop();
                     Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
 
-                SaveNeo4JGraph(project);
                     Console.Write("Collecting SCC Metrics using DFS...");
                     timer.Reset(); timer.Start();
                     JsonMethod.CollectSccMetricsUsingDFS();
@@ -540,7 +515,7 @@ namespace ProjectParser
                     // Code to generate HPC Project Input File
                     Console.Write("Writing HPC Project Input File...");
                     timer.Reset(); timer.Start();
-                    WriteHPCInputFile(salida.SelectedPath);
+                    WriteHPCInputFile(output_path);
                     timer.Stop();
                     Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
                     */
@@ -568,11 +543,14 @@ namespace ProjectParser
                     Console.WriteLine("    Avg ChainLen: " + JsonMethod.Stats.promLargoCadena);
                     Console.WriteLine("\n\n");
 
+                    /**/
                     Console.Write("Collecting PDG Metrics using Parallelism...");
                     timer.Reset(); timer.Start();
                     JsonMethod.CollectMetricsInParallel();
                     timer.Stop();
                     Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+                    /**/
+
 
                     // Comment to count chains
                     /*
@@ -593,6 +571,7 @@ namespace ProjectParser
                 /**/
                 Console.Write("Saving graph with metrics in neo4j...");
                 timer.Reset(); timer.Start();
+                SaveNeo4JGraph(project);
                 timer.Stop();
                 Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
                 /**/
@@ -771,7 +750,7 @@ namespace ProjectParser
             output.Flush();
         }
 
-        public static void Metrics()
+        public static async Task MetricsAsync()
         { 
             int cantidadClases = 0;
             //***********************************************
@@ -779,16 +758,16 @@ namespace ProjectParser
             //*                                             *
             //***********************************************
             List<Metodo> listaMetodos = new System.Collections.Generic.List<Metodo>();
-            Compilation myCompilation = CreateTestCompilation(null);//Llama a la clase para crear la lista de archivos
+            List<Compilation> myCompilation = await CreateTestCompilationAsync(null);//Llama a la clase para crear la lista de archivos
 
             List<SemanticModel> semanticModels = new List<SemanticModel>();
             List<SyntaxNode> roots = new List<SyntaxNode>();
-            string nombreProyecto = myCompilation.AssemblyName;
+            string nombreProyecto = myCompilation[0].AssemblyName;
 
-            foreach (SyntaxTree sourceTree in myCompilation.SyntaxTrees)//Loop para recorrer la lista de archivos
+            foreach (SyntaxTree sourceTree in myCompilation[0].SyntaxTrees)//Loop para recorrer la lista de archivos
             {
                 roots.Add(sourceTree.GetRoot());//Obtiene el root de cada árbol de clase
-                semanticModels.Add(myCompilation.GetSemanticModel(sourceTree));//Se guarda los semantic models en el mismo orden de la lista
+                semanticModels.Add(myCompilation[0].GetSemanticModel(sourceTree));//Se guarda los semantic models en el mismo orden de la lista
             }
 
             List<MethodDeclarationSyntax> declarationSyntax = new List<MethodDeclarationSyntax>();
@@ -1242,8 +1221,10 @@ namespace ProjectParser
             }
         }
 
-        private static Compilation CreateTestCompilation(string p)//JsonClass para la creacion de los árboles de sintaxis
+        private static async Task<List<Compilation>> CreateTestCompilationAsync(string p)//JsonClass para la creacion de los árboles de sintaxis
         {
+            List<Compilation> list = new List<Compilation>();
+
             String programPath = p;
 
             bool run = true;
@@ -1251,10 +1232,7 @@ namespace ProjectParser
             if (p == null)
             {
                 FolderBrowserDialog entrada = new FolderBrowserDialog();
-                //entrada.SelectedPath = @"C:\Users\Administrador\Documents\repos\roslyn";
                 entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
-                //entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
-                //entrada.SelectedPath = @"C:\Users\Steven\Desktop\Sources\";
                 entrada.Description = @"Input folder";
                 if (entrada.ShowDialog() == DialogResult.OK)
                     programPath = entrada.SelectedPath;
@@ -1264,51 +1242,40 @@ namespace ProjectParser
 
             if (run)
             {
-                Console.WriteLine(programPath);
-                // creation of the syntax tree for every file    
-                //String programPath = @"C:\Users\Steven\Desktop\Código prueba\shadowsocks-windows-master";
-                //  String programPath = @"C:\Users\Steven\Desktop\Código prueba\mongo-csharp-driver-master\mongo-csharp-driver-master\src";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
-                //String programPath = @"C:\Users\jnavas\source\repos\AnalizadorDFS\AnalizadorDFS\Ejemplo";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
-                //String programPath = @""+ entrada.SelectedPath;
-                // String programPath = @"" + entrada.SelectedPath;
-                //String programPath = @"C:\Users\jnavas\source\repos\netmf";
-                //String programPath = @"C:\Users\jnavas\source\repos\mongo";
+                string securityPath = @"C:\Users\jnavas\source\repos\DCI-SLN\Framework\DCI.Seguridad\DCI.Seguridad.sln";
+                string solutionPath = @"C:\Users\jnavas\source\repos\DCI-SLN\DCI_SIA\DCI_SIA.sln";
 
-                //String programPath = @"C:\Users\jnavas\source\repos\roslyn";
-                //String programPath = @"C:\Users\Steven\Documents\GitHub\AnalizadorDFS\AnalizadorDFS\Ejemplo";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
-                //String programPath = @"C:\Users\jnavas\source\repos\AnalizadorDFS\AnalizadorDFS\Ejemplo";//         <--------------------------- DIRECTORIO DONDE ESTÁN LOS ARCHIVOS .cs
+                MSBuildLocator.RegisterDefaults();
+                MSBuildWorkspace workspace = MSBuildWorkspace.Create();
 
-                string nombreDelProyecto = Path.GetFileName(programPath);
-                var csFiles = Directory.EnumerateFiles(programPath, "*.cs", SearchOption.AllDirectories);//Crea una coleccion de directorios de los archivos que encuentre
+                Solution security = await workspace.OpenSolutionAsync(securityPath);
+                Solution solution = await workspace.OpenSolutionAsync(solutionPath);
+                JsonNamespace.Project.Name = Path.GetFileNameWithoutExtension(solutionPath);
+                Console.WriteLine("Solution loaded");
 
-                List<SyntaxTree> sourceTrees = new List<SyntaxTree>();//Lista para almacenar los SyntaxTrees que se van a crear
+                ProjectDependencyGraph securityGraph = security.GetProjectDependencyGraph();
 
-
-                foreach (string currentFile in csFiles)
-                {//Loop que recorre toda la coleccion de archivos
-
-
-                    String programText = File.ReadAllText(currentFile);//Lee el archivo y lo guarda en un string
-                    SyntaxTree programTree = CSharpSyntaxTree.ParseText(programText).WithFilePath(currentFile);//Crea el SyntaxTree para el archivo actual con el string 
-
-
-                    sourceTrees.Add(programTree);//Guarda el archivo ya parseado dentro de la lista
-
+                foreach (ProjectId projectId in securityGraph.GetTopologicallySortedProjects())
+                {
+                    Compilation compilation = security.GetProject(projectId).GetCompilationAsync().Result;
+                    if (compilation != null && !string.IsNullOrEmpty(compilation.AssemblyName))
+                    {
+                        list.Add(compilation);
+                    }
                 }
-                // gathering the assemblies
-                MetadataReference mscorlib = MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location);
-                MetadataReference codeAnalysis = MetadataReference.CreateFromFile(typeof(SyntaxTree).GetTypeInfo().Assembly.Location);
-                MetadataReference csharpCodeAnalysis = MetadataReference.CreateFromFile(typeof(CSharpSyntaxTree).GetTypeInfo().Assembly.Location);
-                MetadataReference[] references = { mscorlib, codeAnalysis, csharpCodeAnalysis };
+                
+                ProjectDependencyGraph projectGraph = solution.GetProjectDependencyGraph();
 
-                // compilation
-                return CSharpCompilation.Create(nombreDelProyecto,
-                                 sourceTrees,
-                                 references,
-                                 new CSharpCompilationOptions(OutputKind.ConsoleApplication));
-
+                foreach (ProjectId projectId in projectGraph.GetTopologicallySortedProjects())
+                {
+                    Compilation compilation = solution.GetProject(projectId).GetCompilationAsync().Result;
+                    if (compilation != null && !string.IsNullOrEmpty(compilation.AssemblyName))
+                    {
+                        list.Add(compilation);
+                    }
+                }
             }
-            return null;
+            return list;
         }
 
         private static void CollapseGraphSCC()
