@@ -1,0 +1,1 @@
+﻿--name DCI.SIA --outdir "C:/Users/jnavas/source/repos/output/" --pause true --solutions "C:/Users/jnavas/source/repos/DCI-SLN/Framework/DCI.Seguridad/DCI.Seguridad.sln" "C:/Users/jnavas/source/repos/DCI-SLN/DCI_SIA/DCI_SIA.sln"

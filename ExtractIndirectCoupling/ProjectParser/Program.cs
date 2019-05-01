@@ -15,6 +15,7 @@ using ArchiMetrics.Analysis.Common;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.MSBuild;
 using Microsoft.Build.Locator;
+using CommandLine;
 
 //Tools> Nugget>Console
 // Install-Package Microsoft.CodeAnalysis
@@ -39,10 +40,11 @@ namespace ProjectParser
         [STAThread]
         public static void Main(string[] args)
         {
-            if (args.Length == 0)
-                LoadProjectAsync(null, null).Wait();
-            else if (args.Length == 2)
-                LoadProjectAsync(args[0], args[1]).Wait();
+            CommandLine.Parser.Default.ParseArguments<Options>(args)
+                .WithParsed<Options>(opts => {
+                    LoadProjectAsync(opts).Wait();
+                })
+                .WithNotParsed((errs) => { });
             
         }
 
@@ -440,238 +442,204 @@ namespace ProjectParser
 
             foreach (string p in projects)
             {
-                await LoadProjectAsync(p, output_dir);
+                //await LoadProjectAsync(p, output_dir);
             }
 
         }
 
-        private static async Task LoadProjectAsync(string p, string o)
+        private static async Task LoadProjectAsync(Options o)
         {
             JsonProject project = new JsonProject();
             JsonNamespace.Project = project;
 
-            bool loadNeo4jOnly = false;
+            Stopwatch timer = new Stopwatch();
 
             List<Compilation> myCompilation = null;
-            if (loadNeo4jOnly == false)
-                myCompilation = await CreateTestCompilationAsync(p);//Llama a la clase para crear la lista de archivos
+            Console.Write("Loading solution(s)...");
+            timer.Start();
+            myCompilation = await CreateTestCompilationAsync(o);//Llama a la clase para crear la lista de archivos
+            timer.Stop();
+            Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
 
-            System.IO.StreamWriter diag_output = new System.IO.StreamWriter(@"C:\Users\jnavas\source\repos\output\diagnostics.txt");
+            string output_path = o.Outdir;
 
-            foreach (Compilation compilation in myCompilation)
+            Console.Write("Loading ASTs...");
+            timer.Start();
+            ExtractGraphFromAST(project, myCompilation, output_path);
+            myCompilation = null;
+            timer.Stop();
+            Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+
+            Console.Write("Collapsing SCCs...");
+            timer.Reset(); timer.Start();
+            CollapseGraphSCC();
+            timer.Stop();
+            Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+
+            Console.Write("Collecting SCC Metrics using DFS...");
+            timer.Reset(); timer.Start();
+            JsonMethod.CollectSccMetricsUsingDFS();
+            timer.Stop();
+            Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+
+            /*
+            // Code to generate HPC Project Input File
+            Console.Write("Writing HPC Project Input File...");
+            timer.Reset(); timer.Start();
+            WriteHPCInputFile(output_path);
+            timer.Stop();
+            Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+            */
+
+            Console.Write("Counting chains using BFS...");
+            timer.Reset(); timer.Start();
+            JsonMethod.CountChainsUsingBFS();
+            timer.Stop();
+            Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+
+            Console.WriteLine("\n\n");
+            Console.WriteLine("System: " + JsonNamespace.Project.Name);
+            Console.WriteLine("    LOC: " + JsonMethod.Stats.numLOC);
+            Console.WriteLine("    Classes: " + JsonMethod.Stats.numClases);
+            Console.WriteLine("    Methods: " + JsonMethod.Stats.numMetodos);
+            Console.WriteLine("    Methods per class: " + JsonMethod.Stats.numMetodosPorClase);
+            Console.WriteLine("    Max Calls To Method: " + JsonMethod.Stats.maxCallsToName);
+            Console.WriteLine("    Max Calls To: " + JsonMethod.Stats.maxCalls);
+            Console.WriteLine("    Avg Calls To: " + JsonMethod.Stats.promCalls);
+            Console.WriteLine("    Max Called By Method: " + JsonMethod.Stats.maxCalledByName);
+            Console.WriteLine("    Max Called By: " + JsonMethod.Stats.maxCalledby);
+            Console.WriteLine("    Avg Called By: " + JsonMethod.Stats.promCalledby);
+            Console.WriteLine("    Chains: " + JsonMethod.Stats.numCadenas);
+            Console.WriteLine("    Max ChainLen: " + JsonMethod.Stats.maxLargoCadena);
+            Console.WriteLine("    Avg ChainLen: " + JsonMethod.Stats.promLargoCadena);
+            Console.WriteLine("\n\n");
+
+            /**/
+            Console.WriteLine("Collecting PDG Metrics using Parallelism...");
+            timer.Reset(); timer.Start();
+            JsonMethod.CollectMetricsInParallel();
+            timer.Stop();
+            Console.WriteLine();
+            Console.WriteLine("    (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+            /**/
+
+
+            // Comment to count chains
+            /*
+            Console.Write("Collecting PDG Metrics using Dfs...");
+            timer.Reset(); timer.Start();
+            JsonMethod.CollectMetricsUsingDfs();
+            //Thread T = new Thread(JsonMethod.CollectMetricsUsingDfs, 1024*1024*10);
+            //T.Start();
+            //T.Join();
+            timer.Stop();
+            Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+            */
+
+            // Uncomment this
+            /**/
+            Console.Write("Saving graph with metrics in neo4j...");
+            timer.Reset(); timer.Start();
+            SaveNeo4JGraph(project);
+            timer.Stop();
+            Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+            /**/
+
+
+
+            /*
+            Console.Write("Saving metrics output to metrics.txt...");
+            timer.Reset(); timer.Start();
+            // Send output to a file
+            System.IO.StreamWriter output = new System.IO.StreamWriter(@"" + salida.SelectedPath + @"\metrics.txt");
+
+            output.WriteLine("\n=============================================================================================\n");
+
+            // Print metrics for Methods/SCCs 
+
+            foreach (KeyValuePair<string, JsonMethod> kv in JsonMethod.Methods)
             {
-                foreach (Diagnostic d in compilation.GetDiagnostics())
-                {
-                    diag_output.WriteLine(d.ToString());
-
-                }
+                JsonMethod m = kv.Value;
+                if (m.IsCollapsed == true) continue;
+                output.WriteLine(String.Format("Method: {0}-{1}  K:{2}  L:{3}  C:{4}", m.Id, m.Name, m.Kon, m.Loc, m.Cyc));
+                output.WriteLine(String.Format("  FORWARD"));
+                output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fcnt, m.Kon_metrics.Fsum));
+                output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fcnt, m.Loc_metrics.Fsum));
+                output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Cyc_metrics.Fmin, m.Cyc_metrics.Fmax, m.Cyc_metrics.Favg, m.Cyc_metrics.Fcnt, m.Cyc_metrics.Fsum));
+                output.WriteLine(String.Format("  BACKWARD"));
+                output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bcnt, m.Kon_metrics.Bsum));
+                output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bcnt, m.Loc_metrics.Bsum));
+                output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Cyc_metrics.Bmin, m.Cyc_metrics.Bmax, m.Cyc_metrics.Bavg, m.Cyc_metrics.Bcnt, m.Cyc_metrics.Bsum));
             }
-            diag_output.Flush();
-            diag_output.Close();
-
-            bool run = true;
-
-            string output_path = o;
-
-            if (o == null)
+            foreach (JsonMethod m in JsonMethod.SccList)
             {
-                FolderBrowserDialog salida = new FolderBrowserDialog();
-                salida.Description = @"Output folder";
-                salida.SelectedPath = @"C:\Users\jnavas\source\repos\output";
-                //salida.SelectedPath = @"C:\Users\Administrador\Documents\GitHub\avibanalysis\ExtractIndirectCoupling\output";
-                //salida.SelectedPath = @"C:\Users\Steven\Desktop\output";
-                if (salida.ShowDialog() == DialogResult.OK)
-                    output_path = salida.SelectedPath;
-                else
-                    run = false;
+                output.WriteLine(String.Format("SCC: {0}-{1}  K:{2}  L:{3}  C:{4}", m.Id, m.Name, m.Kon, m.Loc, m.Cyc));
+                output.WriteLine(String.Format("  FORWARD"));
+                output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fcnt, m.Kon_metrics.Fsum));
+                output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fcnt, m.Loc_metrics.Fsum));
+                output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Cyc_metrics.Fmin, m.Cyc_metrics.Fmax, m.Cyc_metrics.Favg, m.Cyc_metrics.Fcnt, m.Cyc_metrics.Fsum));
+                output.WriteLine(String.Format("  BACKWARD"));
+                output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bcnt, m.Kon_metrics.Bsum));
+                output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bcnt, m.Loc_metrics.Bsum));
+                output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Cyc_metrics.Bmin, m.Cyc_metrics.Bmax, m.Cyc_metrics.Bavg, m.Cyc_metrics.Bcnt, m.Cyc_metrics.Bsum));
             }
 
-            if (run)
+            output.WriteLine("\n=============================================================================================\n");
+
+            // Print metrics for Pairs of methods
+
+            for (int m1 = 0; m1 < JsonMethod.PairMetricsList.Width; m1++)
+                for (int m2 = 0; m2 < JsonMethod.PairMetricsList.Height; m2++)
+                    if (JsonMethod.PairMetricsList.IsCellPresent(m1, m2))
+                    {
+                        PairMetrics m = JsonMethod.PairMetricsList[m1, m2];
+                        output.WriteLine(String.Format("From Method: {0} ==> To Method: {1}", m1, m2));
+                        output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.K.Fmin, m.K.Fmax, m.K.Favg, m.K.Fcnt, m.K.Fsum));
+                        output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.L.Fmin, m.L.Fmax, m.L.Favg, m.L.Fcnt, m.L.Fsum));
+                        output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.C.Fmin, m.C.Fmax, m.C.Favg, m.C.Fcnt, m.C.Fsum));
+                    }
+
+            output.WriteLine("\n=============================================================================================\n");
+            output.Flush();
+            output.Close();
+
+            timer.Stop();
+            Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+            */
+
+            /*
+            JsonSerializer serializer = new JsonSerializer();
+
+            using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
+            using (JsonWriter writer = new JsonTextWriter(sw))
             {
-
-                Stopwatch timer = new Stopwatch();
-                if (loadNeo4jOnly == false)
-                {
-                    Console.Write("Loading ASTs...");
-                    timer.Start();
-                    ExtractGraphFromAST(project, myCompilation, output_path);
-                    myCompilation = null;
-                    timer.Stop();
-                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-
-                    Console.Write("Collapsing SCCs...");
-                    timer.Reset(); timer.Start();
-                    CollapseGraphSCC();
-                    timer.Stop();
-                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-
-                    Console.Write("Collecting SCC Metrics using DFS...");
-                    timer.Reset(); timer.Start();
-                    JsonMethod.CollectSccMetricsUsingDFS();
-                    timer.Stop();
-                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-
-                    /*
-                    // Code to generate HPC Project Input File
-                    Console.Write("Writing HPC Project Input File...");
-                    timer.Reset(); timer.Start();
-                    WriteHPCInputFile(output_path);
-                    timer.Stop();
-                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-                    */
-
-                    Console.Write("Counting chains using BFS...");
-                    timer.Reset(); timer.Start();
-                    JsonMethod.CountChainsUsingBFS();
-                    timer.Stop();
-                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-
-                    Console.WriteLine("\n\n");
-                    Console.WriteLine("System: " + JsonNamespace.Project.Name);
-                    Console.WriteLine("    LOC: " + JsonMethod.Stats.numLOC);
-                    Console.WriteLine("    Classes: " + JsonMethod.Stats.numClases);
-                    Console.WriteLine("    Methods: " + JsonMethod.Stats.numMetodos);
-                    Console.WriteLine("    Methods per class: " + JsonMethod.Stats.numMetodosPorClase);
-                    Console.WriteLine("    Max Calls To Method: " + JsonMethod.Stats.maxCallsToName);
-                    Console.WriteLine("    Max Calls To: " + JsonMethod.Stats.maxCalls);
-                    Console.WriteLine("    Avg Calls To: " + JsonMethod.Stats.promCalls);
-                    Console.WriteLine("    Max Called By Method: " + JsonMethod.Stats.maxCalledByName);
-                    Console.WriteLine("    Max Called By: " + JsonMethod.Stats.maxCalledby);
-                    Console.WriteLine("    Avg Called By: " + JsonMethod.Stats.promCalledby);
-                    Console.WriteLine("    Chains: " + JsonMethod.Stats.numCadenas);
-                    Console.WriteLine("    Max ChainLen: " + JsonMethod.Stats.maxLargoCadena);
-                    Console.WriteLine("    Avg ChainLen: " + JsonMethod.Stats.promLargoCadena);
-                    Console.WriteLine("\n\n");
-
-                    /**/
-                    Console.Write("Collecting PDG Metrics using Parallelism...");
-                    timer.Reset(); timer.Start();
-                    JsonMethod.CollectMetricsInParallel();
-                    timer.Stop();
-                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-                    /**/
-
-
-                    // Comment to count chains
-                    /*
-                    Console.Write("Collecting PDG Metrics using Dfs...");
-                    timer.Reset(); timer.Start();
-                    JsonMethod.CollectMetricsUsingDfs();
-                    //Thread T = new Thread(JsonMethod.CollectMetricsUsingDfs, 1024*1024*10);
-                    //T.Start();
-                    //T.Join();
-                    timer.Stop();
-                    Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-                    */
-
-                }
-
-
-                // Uncomment this
-                /**/
-                Console.Write("Saving graph with metrics in neo4j...");
-                timer.Reset(); timer.Start();
-                SaveNeo4JGraph(project);
-                timer.Stop();
-                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-                /**/
-
-
-
-                /*
-                Console.Write("Saving metrics output to metrics.txt...");
-                timer.Reset(); timer.Start();
-                // Send output to a file
-                System.IO.StreamWriter output = new System.IO.StreamWriter(@"" + salida.SelectedPath + @"\metrics.txt");
-
-                output.WriteLine("\n=============================================================================================\n");
-
-                // Print metrics for Methods/SCCs 
-
-                foreach (KeyValuePair<string, JsonMethod> kv in JsonMethod.Methods)
-                {
-                    JsonMethod m = kv.Value;
-                    if (m.IsCollapsed == true) continue;
-                    output.WriteLine(String.Format("Method: {0}-{1}  K:{2}  L:{3}  C:{4}", m.Id, m.Name, m.Kon, m.Loc, m.Cyc));
-                    output.WriteLine(String.Format("  FORWARD"));
-                    output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fcnt, m.Kon_metrics.Fsum));
-                    output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fcnt, m.Loc_metrics.Fsum));
-                    output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Cyc_metrics.Fmin, m.Cyc_metrics.Fmax, m.Cyc_metrics.Favg, m.Cyc_metrics.Fcnt, m.Cyc_metrics.Fsum));
-                    output.WriteLine(String.Format("  BACKWARD"));
-                    output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bcnt, m.Kon_metrics.Bsum));
-                    output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bcnt, m.Loc_metrics.Bsum));
-                    output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Cyc_metrics.Bmin, m.Cyc_metrics.Bmax, m.Cyc_metrics.Bavg, m.Cyc_metrics.Bcnt, m.Cyc_metrics.Bsum));
-                }
-                foreach (JsonMethod m in JsonMethod.SccList)
-                {
-                    output.WriteLine(String.Format("SCC: {0}-{1}  K:{2}  L:{3}  C:{4}", m.Id, m.Name, m.Kon, m.Loc, m.Cyc));
-                    output.WriteLine(String.Format("  FORWARD"));
-                    output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Kon_metrics.Fmin, m.Kon_metrics.Fmax, m.Kon_metrics.Favg, m.Kon_metrics.Fcnt, m.Kon_metrics.Fsum));
-                    output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Loc_metrics.Fmin, m.Loc_metrics.Fmax, m.Loc_metrics.Favg, m.Loc_metrics.Fcnt, m.Loc_metrics.Fsum));
-                    output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Cyc_metrics.Fmin, m.Cyc_metrics.Fmax, m.Cyc_metrics.Favg, m.Cyc_metrics.Fcnt, m.Cyc_metrics.Fsum));
-                    output.WriteLine(String.Format("  BACKWARD"));
-                    output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Kon_metrics.Bmin, m.Kon_metrics.Bmax, m.Kon_metrics.Bavg, m.Kon_metrics.Bcnt, m.Kon_metrics.Bsum));
-                    output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Loc_metrics.Bmin, m.Loc_metrics.Bmax, m.Loc_metrics.Bavg, m.Loc_metrics.Bcnt, m.Loc_metrics.Bsum));
-                    output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.Cyc_metrics.Bmin, m.Cyc_metrics.Bmax, m.Cyc_metrics.Bavg, m.Cyc_metrics.Bcnt, m.Cyc_metrics.Bsum));
-                }
-
-                output.WriteLine("\n=============================================================================================\n");
-
-                // Print metrics for Pairs of methods
-
-                for (int m1 = 0; m1 < JsonMethod.PairMetricsList.Width; m1++)
-                    for (int m2 = 0; m2 < JsonMethod.PairMetricsList.Height; m2++)
-                        if (JsonMethod.PairMetricsList.IsCellPresent(m1, m2))
-                        {
-                            PairMetrics m = JsonMethod.PairMetricsList[m1, m2];
-                            output.WriteLine(String.Format("From Method: {0} ==> To Method: {1}", m1, m2));
-                            output.WriteLine(String.Format("     Kon  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.K.Fmin, m.K.Fmax, m.K.Favg, m.K.Fcnt, m.K.Fsum));
-                            output.WriteLine(String.Format("     Loc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.L.Fmin, m.L.Fmax, m.L.Favg, m.L.Fcnt, m.L.Fsum));
-                            output.WriteLine(String.Format("     Cyc  Min:{0}  Max:{1}  Avg:{2}  Cnt:{3}  Sum:{4}", m.C.Fmin, m.C.Fmax, m.C.Favg, m.C.Fcnt, m.C.Fsum));
-                        }
-
-                output.WriteLine("\n=============================================================================================\n");
-                output.Flush();
-                output.Close();
-
-                timer.Stop();
-                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-                */
-
-                /*
-                JsonSerializer serializer = new JsonSerializer();
-
-                using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
-                using (JsonWriter writer = new JsonTextWriter(sw))
-                {
-                    serializer.Formatting = Formatting.Indented;
-                    serializer.Serialize(writer, project);
-                }
-                */
-
-                /*
-                // Serialize City attributes
-                JsonSerializer serializer = new JsonSerializer();
-
-                using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
-                {
-                    sw.Write(project.JSerialize().ToString());
-                    sw.Flush();
-                }
-                */
-
-                /*MongoDB MapReduce*/
-                /*
-                Console.Write("Running MapReduce on MongoDB...");
-                timer.Reset(); timer.Start();
-                JsonMethod.MapReduceMetrics(MetricType.icr, MagnitudeFunctionType.sum, WeightFunctionType.cyc);
-                timer.Stop();
-                Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-                */
+                serializer.Formatting = Formatting.Indented;
+                serializer.Serialize(writer, project);
             }
+            */
+
+            /*
+            // Serialize City attributes
+            JsonSerializer serializer = new JsonSerializer();
+
+            using (StreamWriter sw = new StreamWriter(@"" + salida.SelectedPath + @"\" + project.Name + @".json"))
+            {
+                sw.Write(project.JSerialize().ToString());
+                sw.Flush();
+            }
+            */
+
+            /*MongoDB MapReduce*/
+            /*
+            Console.Write("Running MapReduce on MongoDB...");
+            timer.Reset(); timer.Start();
+            JsonMethod.MapReduceMetrics(MetricType.icr, MagnitudeFunctionType.sum, WeightFunctionType.cyc);
+            timer.Stop();
+            Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+            */
 
             Console.WriteLine("Process finished successfully!");
-            //if (o == null) Console.Read();
+            if (o.Pause) Console.Read();
 
         }
 
@@ -1221,49 +1189,19 @@ namespace ProjectParser
             }
         }
 
-        private static async Task<List<Compilation>> CreateTestCompilationAsync(string p)//JsonClass para la creacion de los árboles de sintaxis
+        private static async Task<List<Compilation>> CreateTestCompilationAsync(Options o)//JsonClass para la creacion de los árboles de sintaxis
         {
             List<Compilation> list = new List<Compilation>();
 
-            String programPath = p;
+            MSBuildLocator.RegisterDefaults();
+            MSBuildWorkspace workspace = MSBuildWorkspace.Create();
 
-            bool run = true;
+            JsonNamespace.Project.Name = o.Name;
 
-            if (p == null)
+            foreach (string solutionPath in o.Solutions)
             {
-                FolderBrowserDialog entrada = new FolderBrowserDialog();
-                entrada.SelectedPath = @"C:\Users\jnavas\source\repos";
-                entrada.Description = @"Input folder";
-                if (entrada.ShowDialog() == DialogResult.OK)
-                    programPath = entrada.SelectedPath;
-                else
-                    run = false;
-            }
-
-            if (run)
-            {
-                string securityPath = @"C:\Users\jnavas\source\repos\DCI-SLN\Framework\DCI.Seguridad\DCI.Seguridad.sln";
-                string solutionPath = @"C:\Users\jnavas\source\repos\DCI-SLN\DCI_SIA\DCI_SIA.sln";
-
-                MSBuildLocator.RegisterDefaults();
-                MSBuildWorkspace workspace = MSBuildWorkspace.Create();
-
-                Solution security = await workspace.OpenSolutionAsync(securityPath);
                 Solution solution = await workspace.OpenSolutionAsync(solutionPath);
-                JsonNamespace.Project.Name = Path.GetFileNameWithoutExtension(solutionPath);
-                Console.WriteLine("Solution loaded");
 
-                ProjectDependencyGraph securityGraph = security.GetProjectDependencyGraph();
-
-                foreach (ProjectId projectId in securityGraph.GetTopologicallySortedProjects())
-                {
-                    Compilation compilation = security.GetProject(projectId).GetCompilationAsync().Result;
-                    if (compilation != null && !string.IsNullOrEmpty(compilation.AssemblyName))
-                    {
-                        list.Add(compilation);
-                    }
-                }
-                
                 ProjectDependencyGraph projectGraph = solution.GetProjectDependencyGraph();
 
                 foreach (ProjectId projectId in projectGraph.GetTopologicallySortedProjects())
@@ -1275,6 +1213,31 @@ namespace ProjectParser
                     }
                 }
             }
+                
+            System.IO.StreamWriter diag_output = 
+                new System.IO.StreamWriter(
+                    o.Outdir + 
+                    (o.Outdir.Substring(o.Outdir.Length - 1) == @"/" ? @"" : @"/") + 
+                    @"diagnostics.txt"
+                );
+
+            foreach (WorkspaceDiagnostic d in workspace.Diagnostics)
+            {
+                diag_output.WriteLine(d.ToString());
+            }
+
+            foreach (Compilation compilation in list)
+            {
+                foreach (Diagnostic d in compilation.GetDiagnostics())
+                {
+                    diag_output.WriteLine(d.ToString());
+
+                }
+            }
+
+            diag_output.Flush();
+            diag_output.Close();
+
             return list;
         }
 
