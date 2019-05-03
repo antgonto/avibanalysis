@@ -23,7 +23,7 @@ namespace ProjectParser
 {
     public class Program
     {
-        public static int calcularComplejidadCiclomatica(MethodDeclarationSyntax Nodo)
+        public static int CalcularComplejidadCiclomatica(MethodDeclarationSyntax Nodo)
         {
             int cantIf = Nodo.DescendantNodes().OfType<IfStatementSyntax>().Count();
             int cantWhile = Nodo.DescendantNodes().OfType<WhileStatementSyntax>().Count();
@@ -109,14 +109,14 @@ namespace ProjectParser
             return obj == null ? null : (obj as NamespaceDeclarationSyntax);
         }
 
-        private static double CalculateMaintainablityIndex(double cyclomaticComplexity, double linesOfCode, IHalsteadMetrics halsteadMetrics)
+        public static double CalculateMaintainablityIndex(double cyclomaticComplexity, double linesOfCode, double halsteadVolume)
         {
-            if (linesOfCode.Equals(0.0) || halsteadMetrics.NumberOfOperands.Equals(0) || halsteadMetrics.NumberOfOperators.Equals(0))
+            if (linesOfCode.Equals(0.0) || halsteadVolume.Equals(0))
             {
                 return 100.0;
             }
 
-            var num = Math.Log(halsteadMetrics.GetVolume());
+            var num = Math.Log(halsteadVolume);
             var mi = ((171 - (5.2 * num) - (0.23 * cyclomaticComplexity) - (16.2 * Math.Log(linesOfCode))) * 100) / 171;
 
             return Math.Max(0.0, mi);
@@ -173,7 +173,7 @@ namespace ProjectParser
 
                     HalsteadAnalyzer analyzer = new HalsteadAnalyzer();
                     halstead = analyzer.Calculate(declaracionDeMetodoActual);
-                    mi = CalculateMaintainablityIndex(cyclomatic, lines, halstead);
+                    mi = CalculateMaintainablityIndex(cyclomatic, lines, halstead.GetVolume());
 
                     //cyclomatic = calcularComplejidadCiclomatica(declaracionDeMetodoActual);
                     //if (declaracionDeMetodoActual.Body != null)
@@ -835,7 +835,7 @@ namespace ProjectParser
                     int inicio = 0, fin = 0, lineas = 0, ciclomatico = 0;
                     Console.WriteLine(declaracionDeMetodoActual.Identifier.ToString());
 
-                    ciclomatico = calcularComplejidadCiclomatica(declaracionDeMetodoActual);
+                    ciclomatico = CalcularComplejidadCiclomatica(declaracionDeMetodoActual);
                     if (declaracionDeMetodoActual.Body != null)
                     {
                         inicio = declaracionDeMetodoActual.Body.SyntaxTree.GetLineSpan(declaracionDeMetodoActual.FullSpan).StartLinePosition.Line;
@@ -2138,7 +2138,7 @@ namespace ProjectParser
             }
         }
 
-        private class HalsteadMetrics : IHalsteadMetrics
+        public class HalsteadMetrics : IHalsteadMetrics
         {
             public static readonly IHalsteadMetrics GenericInstanceGetPropertyMetrics;
             public static readonly IHalsteadMetrics GenericInstanceSetPropertyMetrics;

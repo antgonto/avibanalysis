@@ -8,12 +8,12 @@ namespace ProjectParser
 {
     class PairMetrics
     {
-        ForwardMetrics k = new ForwardMetrics();
-        ForwardMetrics l = new ForwardMetrics();
-        ForwardMetrics c = new ForwardMetrics();
+        ForwardMetrics<int, long> k = new ForwardMetrics<int, long>();
+        ForwardMetrics<int, long> l = new ForwardMetrics<int, long>();
+        ForwardMetrics<int, long> c = new ForwardMetrics<int, long>();
 
-        public ForwardMetrics K { get => k; set => k = value; }
-        public ForwardMetrics L { get => l; set => l = value; }
-        public ForwardMetrics C { get => c; set => c = value; }
+        public ForwardMetrics<int, long> K { get => k; set => k = value; }
+        public ForwardMetrics<int, long> L { get => l; set => l = value; }
+        public ForwardMetrics<int, long> C { get => c; set => c = value; }
     }
 }

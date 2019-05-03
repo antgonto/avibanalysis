@@ -158,6 +158,16 @@ namespace ProjectParser
             fcnt += (dynamic)1;
         }
 
+        public void AddBackwardMetrics(T s, T n)
+        {
+            bmax = Math.Max((dynamic)s, (dynamic)fmax);
+            bmin = Math.Min((dynamic)s, (dynamic)fmin);
+            bsum += (dynamic)s;
+            bavg += (dynamic)s;
+            bnet += (dynamic)n;
+            bcnt += (dynamic)1;
+        }
+
         public U Favg { get => favg; set => favg = value; }
         public T Fmax { get => fmax; set => fmax = value; }
         public T Fmin { get => fmin; set => fmin = value; }
