@@ -291,12 +291,12 @@ namespace ProjectParser
                     NamespaceDeclarationSyntax namespaceDec = FindNamespace(classDec);
                     ISymbol symbol = semanticModels[i].GetSymbolInfo(invocation).Symbol;
 
-                    if (symbol == null)
-                    {
-                        bool stop = true;
-                        if (stop) stop = false;
-                        string errortype = "none";
-                    }
+                    //if (symbol == null)
+                    //{
+                    //    bool stop = true;
+                    //    if (stop) stop = false;
+                    //    string errortype = "none";
+                    //}
 
                     //if (methodDec != null && classDec != null)
                     //{
@@ -447,6 +447,71 @@ namespace ProjectParser
 
         }
 
+        private static bool ShortSubgraph(JsonMethod m, int size)
+        {
+            bool isShort = (m.Kon_metrics.Fnet <= size);
+
+            if (isShort)
+                foreach (JsonCall c in m.Calls)
+                {
+                    isShort = isShort && ShortSubgraph(c.Method, size);
+                    if (!isShort) break;
+                }
+
+            return isShort;
+        }
+
+        private static string SerializeSubgraph(JsonMethod m, string prefix)
+        {
+            string s = String.Format("{0}{1}\n", prefix, m.Fullname);
+            prefix = string.Concat(prefix, "     ");
+            foreach (JsonCall c in m.Calls)
+                s = string.Concat(s, SerializeSubgraph(c.Method, prefix));
+            return s;
+        }
+
+        private static void AppendSubgraph(SortedList<int, string> s, JsonMethod m)
+        {
+            s.Add(m.Kon_metrics.Bnet, SerializeSubgraph(m, ""));
+        }
+
+        private static void CollectShortSubgraphs(SortedList<int, string> s, int size)
+        {
+            foreach (KeyValuePair<string, JsonMethod> kv in JsonMethod.Methods)
+            {
+                JsonMethod m = kv.Value;
+                if (m.Kon_metrics.Fnet == 1)
+                    if (m.Kon_metrics.Bnet <= size)
+                        if (ShortSubgraph(m, size))
+                            AppendSubgraph(s, m);
+            }
+        }
+
+        private static void SaveShortSubgraphs(SortedList<int, string> s, Options o)
+        {
+            System.IO.StreamWriter shorts =
+                new System.IO.StreamWriter(
+                    o.Outdir +
+                    (o.Outdir.Substring(o.Outdir.Length - 1) == @"/" ? @"" : @"/") +
+                    @"short_subgraphs.txt"
+                );
+
+            foreach (KeyValuePair<int, string> kv in s)
+                shorts.WriteLine(kv.Value);
+
+            shorts.Flush();
+            shorts.Close();
+        }
+
+        private static void ExportShortSubgraphs(int size, Options o)
+        {
+            SortedList<int, string> s = new SortedList<int, string>(new DuplicateKeyComparer<int>());
+
+            CollectShortSubgraphs(s, size);
+            SaveShortSubgraphs(s, o);
+        }
+
+
         private static async Task LoadProjectAsync(Options o)
         {
             JsonProject project = new JsonProject();
@@ -524,6 +589,17 @@ namespace ProjectParser
             /**/
 
 
+            // Comment this
+            /**/
+            Console.WriteLine("Collecting PDG's short subgraphs...");
+            timer.Reset(); timer.Start();
+            ExportShortSubgraphs(5, o);
+            timer.Stop();
+            Console.WriteLine();
+            Console.WriteLine("    (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
+            /**/
+
+
             // Comment to count chains
             /*
             Console.Write("Collecting PDG Metrics using Dfs...");
@@ -536,14 +612,15 @@ namespace ProjectParser
             Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
             */
 
-            // Uncomment this
-            /**/
+            // Save metrics in Neo4j
+            // Uncomment this OJO OJO OJO OJO OJO
+            /*/
             Console.Write("Saving graph with metrics in neo4j...");
             timer.Reset(); timer.Start();
             SaveNeo4JGraph(project);
             timer.Stop();
             Console.WriteLine(" (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
-            /**/
+            /*/
 
 
 
@@ -2386,6 +2463,23 @@ namespace ProjectParser
                                                                      SyntaxKind.LessThanToken,
                                                                      SyntaxKind.LessThanEqualsToken
                                                                  };
+        }
+
+        public class DuplicateKeyComparer<TKey> : IComparer<TKey> where TKey : IComparable
+        {
+            #region IComparer<TKey> Members
+
+            public int Compare(TKey x, TKey y)
+            {
+                int result = x.CompareTo(y);
+
+                if (result == 0)
+                    return 1;   // Handle equality as beeing greater
+                else
+                    return result;
+            }
+
+            #endregion
         }
     }
 

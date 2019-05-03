@@ -66,13 +66,17 @@ namespace ProjectParser
         long maxChainLen = 0;
 
         // Metrics values
-        Metrics kon_metrics = new Metrics();
-        Metrics loc_metrics = new Metrics();
-        Metrics cyc_metrics = new Metrics();
+        Metrics<int, long> kon_metrics = new Metrics<int, long>();
+        Metrics<int, long> loc_metrics = new Metrics<int, long>();
+        Metrics<int, long> cyc_metrics = new Metrics<int, long>();
+        Metrics<double, double> hal_metrics = new Metrics<double, double>();
+        Metrics<double, double> midx_metrics = new Metrics<double, double>();
+        Metrics<int, long> fanin_metrics = new Metrics<int, long>();
+        Metrics<int, long> fanout_metrics = new Metrics<int, long>();
 
         // SCC Metric Values
-        Dictionary<int, Dictionary<int, List<ForwardMetrics>>> sccForward;
-        Dictionary<int, Dictionary<int, List<BackwardMetrics>>> sccBackward;
+        Dictionary<int, Dictionary<int, List<ForwardMetrics<int, long>>>> sccForward;
+        Dictionary<int, Dictionary<int, List<BackwardMetrics<int, long>>>> sccBackward;
 
         static Dictionary<string, JsonMethod> methods = new Dictionary<string, JsonMethod>();
         static List<JsonMethod> sccList = new List<JsonMethod>();
@@ -87,8 +91,8 @@ namespace ProjectParser
         int loc;
         int kon;
         int cyc;
-        double mi;
-        IHalsteadMetrics h;
+        double midx;
+        IHalsteadMetrics hal;
 
         bool dfsFlag = false;
 
@@ -102,7 +106,7 @@ namespace ProjectParser
             this.Loc = 1;
             this.Kon = 1;
             this.Cyc = 1;
-            this.Mi = 1;
+            this.Midx = 1;
         }
 
         public JsonMethod(int id, string name, JsonClass clase, JsonNamespace @namespace, int loc, int kon, int cyc, IHalsteadMetrics h, double mi)
@@ -115,8 +119,8 @@ namespace ProjectParser
             this.Loc = loc;
             this.Kon = kon;
             this.Cyc = cyc;
-            this.H = h;
-            this.Mi = mi;
+            this.Hal = h;
+            this.Midx = mi;
         }
 
         public static JsonMethod GetMethod(string name, string oclass, string onamespace, bool isInterface, int loc, int kon, int cyc, IHalsteadMetrics h, double mi)
@@ -198,9 +202,9 @@ namespace ProjectParser
 
         public static void ResetMetricValues(JsonMethod method)
         {
-            method.Kon_metrics = new Metrics();
-            method.Loc_metrics = new Metrics();
-            method.Cyc_metrics = new Metrics();
+            method.Kon_metrics = new Metrics<int, long>();
+            method.Loc_metrics = new Metrics<int, long>();
+            method.Cyc_metrics = new Metrics<int, long>();
         }
 
         public static void AddBfsForwardMetricValues(JsonMethod m, JsonMethod mc)
@@ -650,6 +654,53 @@ namespace ProjectParser
             if (m.Cyc_metrics.Fcnt > 0) m.Cyc_metrics.Favg /= m.Cyc_metrics.Fcnt;
 
             m.WasProcessed = enteredIf;
+        }
+
+        private static void AddForwardMetrics(JsonMethod m, JsonMethod[] ch, HashSet<int> h)
+        {
+            int kon_sum = 0;
+            int kon_net = 0;
+            int loc_sum = 0;
+            int loc_net = 0;
+            int cyc_sum = 0;
+            int cyc_net = 0;
+            double hal_sum = 0;
+            double hal_net = 0;
+            double midx_sum = 0;
+            double midx_net = 0;
+            int fanin_sum = 0;
+            int fanin_net = 0;
+            int fanout_sum = 0;
+            int fanout_net = 0;
+
+            foreach (JsonMethod n in ch)
+            {
+                kon_sum += n.Kon;
+                loc_sum += n.Loc;
+                cyc_sum += n.Cyc;
+                hal_sum += n.Hal.GetVolume();
+                midx_sum += n.Midx;
+                fanin_sum += n.CalledBy.Count;
+                fanout_sum += n.Calls.Count;
+                if (h.Contains(n.Id) == false)
+                {
+                    h.Add(n.Id);
+                    kon_net += n.Kon;
+                    loc_net += n.Loc;
+                    cyc_net += n.Cyc;
+                    hal_net += n.Hal.GetVolume();
+                    midx_net += n.Midx;
+                    fanin_net += n.CalledBy.Count;
+                    fanout_net += n.Calls.Count;
+                }
+            }
+            m.Kon_metrics.AddForwardMetrics(kon_sum, kon_net);
+            m.Loc_metrics.AddForwardMetrics(loc_sum, loc_net);
+            m.Cyc_metrics.AddForwardMetrics(cyc_sum, cyc_net);
+            m.Hal_metrics.AddForwardMetrics(hal_sum, hal_net);
+            m.Midx_metrics.AddForwardMetrics(midx_sum, midx_net);
+            m.Fanin_metrics.AddForwardMetrics(fanin_sum, fanin_net);
+            m.Fanout_metrics.AddForwardMetrics(fanout_sum, fanout_net);
         }
 
         private static List<Tuple<int, int, PairMetrics>> CollectCouplingStrength(JsonSubchain[] records, int i, int j)
@@ -1776,12 +1827,12 @@ namespace ProjectParser
             m.KON = kon;
             m.LOC = loc;
             m.CYC = cyc;
-            m.FSUMKON = kon_metrics.Bsum;
-            m.FSUMLOC = loc_metrics.Bsum;
-            m.FSUMCYC = cyc_metrics.Bsum;
-            m.RSUMKON = kon_metrics.Fsum;
-            m.RSUMLOC = loc_metrics.Fsum;
-            m.RSUMCYC = cyc_metrics.Fsum;
+            m.FSUMKON = Kon_metrics.Bsum;
+            m.FSUMLOC = Loc_metrics.Bsum;
+            m.FSUMCYC = Cyc_metrics.Bsum;
+            m.RSUMKON = Kon_metrics.Fsum;
+            m.RSUMLOC = Loc_metrics.Fsum;
+            m.RSUMCYC = Cyc_metrics.Fsum;
 
             return m;
         }
@@ -1803,12 +1854,9 @@ namespace ProjectParser
         public int Loc { get => loc; set => loc = value; }
         public int Kon { get => kon; set => kon = value; }
         public int Cyc { get => cyc; set => cyc = value; }
-        public Metrics Kon_metrics { get => kon_metrics; set => kon_metrics = value; }
-        public Metrics Loc_metrics { get => loc_metrics; set => loc_metrics = value; }
-        public Metrics Cyc_metrics { get => cyc_metrics; set => cyc_metrics = value; }
         public bool IsRecursive { get => isRecursive; set => isRecursive = value; }
-        public Dictionary<int, Dictionary<int, List<ForwardMetrics>>> SccForward { get => sccForward; set => sccForward = value; }
-        public Dictionary<int, Dictionary<int, List<BackwardMetrics>>> SccBackward { get => sccBackward; set => sccBackward = value; }
+        public Dictionary<int, Dictionary<int, List<ForwardMetrics<int, long>>>> SccForward { get => sccForward; set => sccForward = value; }
+        public Dictionary<int, Dictionary<int, List<BackwardMetrics<int, long>>>> SccBackward { get => sccBackward; set => sccBackward = value; }
         internal static SparseMatrix<PairMetrics> PairMetricsList { get => pairMetricsList; set => pairMetricsList = value; }
         public static int MaxMethods { get => maxMethods; set => maxMethods = value; }
         public List<JsonCall> CallsSCC { get => callsSCC; set => callsSCC = value; }
@@ -1820,8 +1868,15 @@ namespace ProjectParser
         public long MaxChainLen { get => maxChainLen; set => maxChainLen = value; }
         internal static List<Tuple<int, int, PairMetrics>> PairMetrics { get => pairMetrics; set => pairMetrics = value; }
         public bool WasProcessed { get => wasProcessed; set => wasProcessed = value; }
-        public double Mi { get => mi; set => mi = value; }
-        public IHalsteadMetrics H { get => h; set => h = value; }
+        public double Midx { get => midx; set => midx = value; }
+        public IHalsteadMetrics Hal { get => hal; set => hal = value; }
+        public Metrics<int, long> Kon_metrics { get => kon_metrics; set => kon_metrics = value; }
+        public Metrics<int, long> Loc_metrics { get => loc_metrics; set => loc_metrics = value; }
+        public Metrics<int, long> Cyc_metrics { get => cyc_metrics; set => cyc_metrics = value; }
+        public Metrics<double, double> Hal_metrics { get => hal_metrics; set => hal_metrics = value; }
+        public Metrics<double, double> Midx_metrics { get => midx_metrics; set => midx_metrics = value; }
+        public Metrics<int, long> Fanin_metrics { get => fanin_metrics; set => fanin_metrics = value; }
+        public Metrics<int, long> Fanout_metrics { get => fanout_metrics; set => fanout_metrics = value; }
 
         static BsonJavaScript map = new BsonJavaScript(@"
             function() {
