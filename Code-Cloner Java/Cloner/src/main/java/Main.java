@@ -46,6 +46,7 @@ public class Main {
 	static int clones = 0;
 	static int identifierConsecutive = 0;
 	static int numberLiterals = 0;
+	final static ArrayList<MethodDeclaration> methodOfProject = new ArrayList();
 	//Snippets de 1 sentencia.
 	final static ArrayList listSnippetsSizeOne = new ArrayList();
 	//Snippets de 2 sentencias.
@@ -56,6 +57,9 @@ public class Main {
 	final static ArrayList listSnippetsSizeFive = new ArrayList();
 	public static void main(String[] args) {
 		try{
+			/*
+			 * LOAD ALL PARAMETERS FROM JSON
+			 */
             String text = new String(Files.readAllBytes(Paths.get("C:\\Users\\Steven\\Documents\\GitHub\\avibanalysis\\Code-Cloner Java\\Files\\Config.js")), StandardCharsets.UTF_8);
             JSONObject obj = new JSONObject(text);
             final String snippets = obj.getString("snippets");
@@ -71,31 +75,27 @@ public class Main {
             final String sourceSnippets = new String(Files.readAllBytes(Paths.get(snippets)), StandardCharsets.UTF_8);
             final String sourceProject = new String(Files.readAllBytes(Paths.get(project)), StandardCharsets.UTF_8);
             
+            /*
+			 * LOAD AND CREATE COMPILATION UNIT FROM SNIPPETS AND PROJECT
+			 */
             Document documentSnippets = new org.eclipse.jface.text.Document(sourceSnippets);
             CompilationUnit cu = parse(documentSnippets);
             
             Document documentProject = new org.eclipse.jface.text.Document(sourceProject);
             CompilationUnit cuProject = parse(documentProject);
             
-            //AST astSnippets = cu.getAST();
-            //ASTRewrite rewriteSnippets = ASTRewrite.create(astSnippets);
-            
             AST astProject = cuProject.getAST();
             ASTRewrite rewriteProject = ASTRewrite.create(astProject);
             
             getSnippets(cu);
+            getMethodsFromProject(cuProject);
+            
             int copy = 1;
         	for(int i = 0; i<QuantityOfClone;i++)
             {
         		Random rand = new Random();
-            	int numberOfCopy = rand.nextInt((maxCopy - minCopy))+1;
-        		ArrayList<MethodDeclaration> clones = createNewClons(astProject,rewriteProject,minLimitSentences,maxLimitSentences,numberOfCopy,2);
-                
-            	for(int j = 0;j<clones.size();j++)
-            	{
-            		ListRewrite lrwProject = rewriteProject.getListRewrite(((TypeDeclaration)cuProject.types().get(0)), TypeDeclaration.BODY_DECLARATIONS_PROPERTY);            	
-                	lrwProject.insertLast(clones.get(j), null);
-            	}
+            	int numberOfCopy = rand.nextInt((maxCopy - minCopy))+minCopy;	
+        		createNewClons(astProject,rewriteProject,minLimitSentences,maxLimitSentences,numberOfCopy,2);
             }
          
             TextEdit edits2 = rewriteProject.rewriteAST(documentProject,null);
@@ -111,26 +111,23 @@ public class Main {
             System.out.println(ex.toString());
         }
 	}
-	public static ArrayList<MethodDeclaration> createNewClons(AST ast, ASTRewrite rewriter,int minBound, int maxBound,int cantidadClones, int tipoClon) throws JavaModelException, IllegalArgumentException, MalformedTreeException, BadLocationException, IOException 
+	public static void createNewClons(AST ast, ASTRewrite rewriter,int minBound, int maxBound,int cantidadClones, int tipoClon) throws JavaModelException, IllegalArgumentException, MalformedTreeException, BadLocationException, IOException 
 	{
-		ArrayList<MethodDeclaration> listMethods = new ArrayList();
+		
 		Random rand = new Random();
 		int numberOfSentences = rand.nextInt((maxBound - minBound) + 1);
 		numberOfSentences += minBound;
 		System.out.println("NumberOfSentences: "+numberOfSentences);
 		
 		
-		for(int i = 0; i<cantidadClones;i++)
+		ArrayList<ArrayList<Statement>> clones = new ArrayList();
+		for(int i =0;i<cantidadClones;i++)
 		{
-			MethodDeclaration newMethod = ast.newMethodDeclaration();
-			Block newBody = ast.newBlock();
-			newMethod.setBody(newBody);
-			newMethod.setName(ast.newSimpleName("Clone_Type_1_Number_"+clones));
-			listMethods.add(newMethod);
-			clones++;
+			ArrayList<Statement> r = new ArrayList();
+			clones.add(r);
 		}
 		
-			
+			//GET THE SIZE OF THE NEW CLON
 			//numberOfSentences = 5;
 			while(numberOfSentences>=1)
 			{
@@ -158,7 +155,7 @@ public class Main {
 					}
 					
 				}
-				
+				//SELECT SNIPPET
 				int sentence = rand.nextInt(max)+1;
 				//int sentence = 4;	
 				switch(sentence)
@@ -169,30 +166,23 @@ public class Main {
 					for (int i = 0; i < methods.getBody().statements().size(); i++ )
 					{
 						Statement statements = (Statement)methods.getBody().statements().get(i);
-						for(int clon = 0;clon<cantidadClones;clon++)
+						if (tipoClon ==1)
 						{
-
-							//Para clones de tipo 2:
-							ListRewrite listRewrite = rewriter.getListRewrite(listMethods.get(clon).getBody(), Block.STATEMENTS_PROPERTY);
-							
-							if (tipoClon ==1)
+							clones.get(0).add(statements);
+						}
+						else
+						{
+							if(tipoClon == 2)
 							{
-								listRewrite.insertFirst(statements, null);
-							}
-							else
-							{
-								if(tipoClon == 2)
+								for (int j=0;j<cantidadClones;j++)
 								{
 									Statement newStatement =(Statement)statements.copySubtree(ast, statements);
 									newStatement = convertStatmentToTypeTwo(newStatement);
-									listRewrite.insertFirst(newStatement, null);
-									
+									clones.get(j).add(newStatement);
 								}
+								
 							}
-							
 						}
-						
-
 					}break;
 					
 				case 3:
@@ -201,27 +191,23 @@ public class Main {
 					for (int i = 0; i < methods.getBody().statements().size(); i++ )
 					{
 						Statement statements = (Statement)methods.getBody().statements().get(i);
-						for(int clon = 0;clon<cantidadClones;clon++)
+						if (tipoClon ==1)
 						{
-
-							//Para clones de tipo 2:
-							ListRewrite listRewrite = rewriter.getListRewrite(listMethods.get(clon).getBody(), Block.STATEMENTS_PROPERTY);
-							
-							if (tipoClon ==1)
+							clones.get(0).add(statements);
+						}
+						else
+						{
+							if(tipoClon == 2)
 							{
-								listRewrite.insertFirst(statements, null);
-							}
-							else
-							{
-								if(tipoClon == 2)
+								for (int j=0;j<cantidadClones;j++)
 								{
+
 									Statement newStatement =(Statement)statements.copySubtree(ast, statements);
 									newStatement = convertStatmentToTypeTwo(newStatement);
-									listRewrite.insertFirst(newStatement, null);
-									
+									clones.get(j).add(newStatement);
 								}
+								
 							}
-							
 						}
 					}break;
 				case 2:
@@ -230,27 +216,23 @@ public class Main {
 					for (int i = 0; i < methods.getBody().statements().size(); i++ )
 					{
 						Statement statements = (Statement)methods.getBody().statements().get(i);
-						for(int clon = 0;clon<cantidadClones;clon++)
+						if (tipoClon ==1)
 						{
-
-							//Para clones de tipo 2:
-							ListRewrite listRewrite = rewriter.getListRewrite(listMethods.get(clon).getBody(), Block.STATEMENTS_PROPERTY);
-							
-							if (tipoClon ==1)
+							clones.get(0).add(statements);
+						}
+						else
+						{
+							if(tipoClon == 2)
 							{
-								listRewrite.insertFirst(statements, null);
-							}
-							else
-							{
-								if(tipoClon == 2)
+								for (int j=0;j<cantidadClones;j++)
 								{
+
 									Statement newStatement =(Statement)statements.copySubtree(ast, statements);
 									newStatement = convertStatmentToTypeTwo(newStatement);
-									listRewrite.insertFirst(newStatement, null);
-									
+									clones.get(j).add(newStatement);
 								}
+								
 							}
-							
 						}
 					}break;
 				case 1:
@@ -259,33 +241,63 @@ public class Main {
 					for (int i = 0; i < methods.getBody().statements().size(); i++ )
 					{
 						Statement statements = (Statement)methods.getBody().statements().get(i);
-						for(int clon = 0;clon<cantidadClones;clon++)
+						if (tipoClon ==1)
 						{
-
-							//Para clones de tipo 2:
-							ListRewrite listRewrite = rewriter.getListRewrite(listMethods.get(clon).getBody(), Block.STATEMENTS_PROPERTY);
-							
-							if (tipoClon ==1)
+							clones.get(0).add(statements);
+						}
+						else
+						{
+							if(tipoClon == 2)
 							{
-								listRewrite.insertFirst(statements, null);
-							}
-							else
-							{
-								if(tipoClon == 2)
+								for (int j=0;j<cantidadClones;j++)
 								{
+
 									Statement newStatement =(Statement)statements.copySubtree(ast, statements);
 									newStatement = convertStatmentToTypeTwo(newStatement);
-									listRewrite.insertFirst(newStatement, null);
-									
+									clones.get(j).add(newStatement);
 								}
+								
 							}
-							
 						}
 					}break;
 				}
 				numberOfSentences -= sentence;
 			}
-		return listMethods;
+		//Agrego los clones a sus métodos correspondientes		
+		if (tipoClon ==1)
+		{
+			for (int i =0;i<cantidadClones;i++)
+			{
+				MethodDeclaration methodSelected = methodOfProject.get(rand.nextInt(methodOfProject.size()));
+				ListRewrite listRewrite = rewriter.getListRewrite(methodSelected.getBody(), Block.STATEMENTS_PROPERTY);
+				
+				//Selecciono el clon 0 por que es el que contiene los de tipo uno.
+				for(int j =0;j<clones.get(0).size();j++)
+				{
+					//Inserto todos los Statements a un metodo.
+					listRewrite.insertFirst(clones.get(0).get(j), null);
+				}
+				
+		    	
+			}
+			return;
+		}
+		else
+		{
+			for (int i =0;i<cantidadClones;i++)
+			{
+				MethodDeclaration methodSelected = methodOfProject.get(rand.nextInt(methodOfProject.size()));
+				ListRewrite listRewrite = rewriter.getListRewrite(methodSelected.getBody(), Block.STATEMENTS_PROPERTY);
+				
+				
+				for(int j =0;j<clones.get(i).size();j++)
+				{
+					//Inserto todos los Statements a un metodo.
+					listRewrite.insertFirst(clones.get(i).get(j), null);
+				}
+			}
+		}
+		
 	}
 	
 	public static Statement convertStatmentToTypeTwo(Statement statement)
@@ -361,7 +373,19 @@ public class Main {
 		System.out.println("Metodos 3 : "+listSnippetsSizeThree.size());
 		System.out.println("Metodos 5 : "+listSnippetsSizeFive.size());
 	}
-	
+	public static void getMethodsFromProject(CompilationUnit cu)
+	{
+		AST ast = cu.getAST();
+		ASTRewrite  rewriter = ASTRewrite.create(ast);
+		cu.recordModifications();		
+		cu.accept(new ASTVisitor() {
+	        //by add more visit method like the following below, then all king of statement can be visited.
+			public boolean visit(MethodDeclaration node) {
+					methodOfProject.add(node);
+					return true;
+				}	
+				});
+	}
 	public static CompilationUnit parse(Document doc) throws JavaModelException, MalformedTreeException, BadLocationException, IOException
 	{
 		Map options = JavaCore.getOptions();

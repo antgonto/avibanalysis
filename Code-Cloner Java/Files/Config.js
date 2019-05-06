@@ -6,7 +6,7 @@
 	"maxLimit" : 5,
 	"minLimitSentences" : 5,
 	"maxLimitSentences" : 15,
-	"minOfCopy" : 3,
-	"maxOfCopy" : 6,
-	"quantityOfClone" : 5
+	"minOfCopy" : 2,
+	"maxOfCopy" : 3,
+	"quantityOfClone" : 2
 }

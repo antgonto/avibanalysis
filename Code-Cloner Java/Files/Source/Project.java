@@ -16,7 +16,30 @@ public class Methods {
     object.nonStaticMethod();
   }
 
-  static void staticMethod() {
+  static void staticMethod1() {
+    System.out.println("Static method can be called without creating object");
+  }
+   static void staticMethod2() {
+    System.out.println("Static method can be called without creating object");
+  } 
+
+  static void staticMethod3() {
+    System.out.println("Static method can be called without creating object");
+  } 
+
+  static void staticMethod4() {
+    System.out.println("Static method can be called without creating object");
+  } 
+
+  static void staticMethod5() {
+    System.out.println("Static method can be called without creating object");
+  } 
+
+  static void staticMethod6() {
+    System.out.println("Static method can be called without creating object");
+  } 
+
+  static void staticMethod7() {
     System.out.println("Static method can be called without creating object");
   }
  
