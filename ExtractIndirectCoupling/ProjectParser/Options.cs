@@ -15,8 +15,11 @@ namespace ProjectParser
         [Option('o', "outdir", Required = true, HelpText = "Output directory.")]
         public string Outdir { get; set; }
 
-        [Option('p', "pause", Required = true, HelpText = "Make a pause at the end.")]
+        [Option('p', "pause", HelpText = "Make a pause at the end.")]
         public bool Pause { get; set; }
+
+        [Option('m', "month", HelpText = "Month offset from now.")]
+        public int Month { get; set; }
 
         [Option('s', "solutions", Required = true, HelpText = "Solutions of the system to process.")]
         public IEnumerable<string> Solutions { get; set; }

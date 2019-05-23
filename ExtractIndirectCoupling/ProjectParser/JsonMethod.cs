@@ -586,7 +586,7 @@ namespace ProjectParser
 
                 if (s.To != to)
                 {
-                    AvgForwardMetrics(m, hal_sum, hal_net);
+                    AvgForwardMetrics(m, ref hal_sum, ref hal_net);
 
                     m.WasProcessed = enteredIf;
                     enteredIf = false;
@@ -607,18 +607,18 @@ namespace ProjectParser
                 {
                     enteredIf = true;
 
-                    AddForwardMetrics(m, s.Chain, hal_sum, hal_net, h);
+                    AddForwardMetrics(m, s.Chain, ref hal_sum, ref hal_net, h);
                 }
 
                 idx++;
             }
 
-            AvgForwardMetrics(m, hal_sum, hal_net);
+            AvgForwardMetrics(m, ref hal_sum, ref hal_net);
 
             m.WasProcessed = enteredIf;
         }
 
-        private static void AddForwardMetrics(JsonMethod m, JsonMethod[] ch, Program.HalsteadMetrics halSum, Program.HalsteadMetrics halNet, HashSet<int> h)
+        private static void AddForwardMetrics(JsonMethod m, JsonMethod[] ch, ref Program.HalsteadMetrics halSum, ref Program.HalsteadMetrics halNet, HashSet<int> h)
         {
             int kon_sum = 0;
             int kon_net = 0;
@@ -638,7 +638,7 @@ namespace ProjectParser
                 kon_sum += n.Kon;
                 loc_sum += n.Loc;
                 cyc_sum += n.Cyc;
-                hal_sum.Merge(n.Hal);
+                hal_sum = hal_sum.Merge(n.Hal) as Program.HalsteadMetrics;
                 fanin_sum += n.CalledBy.Count;
                 fanout_sum += n.Calls.Count;
                 if (h.Contains(n.Id) == false)
@@ -647,7 +647,7 @@ namespace ProjectParser
                     kon_net += n.Kon;
                     loc_net += n.Loc;
                     cyc_net += n.Cyc;
-                    hal_net.Merge(n.Hal);
+                    hal_net = hal_net.Merge(n.Hal) as Program.HalsteadMetrics;
                     fanin_net += n.CalledBy.Count;
                     fanout_net += n.Calls.Count;
                 }
@@ -655,14 +655,14 @@ namespace ProjectParser
             m.Kon_metrics.AddForwardMetrics(kon_sum, kon_net);
             m.Loc_metrics.AddForwardMetrics(loc_sum, loc_net);
             m.Cyc_metrics.AddForwardMetrics(cyc_sum, cyc_net);
-            halSum.Merge(hal_sum);
-            halNet.Merge(hal_net);
+            halSum = halSum.Merge(hal_sum) as Program.HalsteadMetrics;
+            halNet = halNet.Merge(hal_net) as Program.HalsteadMetrics;
             m.Hal_metrics.AddForwardMetrics(hal_sum.GetVolume(), hal_net.GetVolume());
             m.Fanin_metrics.AddForwardMetrics(fanin_sum, fanin_net);
             m.Fanout_metrics.AddForwardMetrics(fanout_sum, fanout_net);
         }
 
-        private static void AvgForwardMetrics(JsonMethod m, Program.HalsteadMetrics halSum, Program.HalsteadMetrics halNet)
+        private static void AvgForwardMetrics(JsonMethod m, ref Program.HalsteadMetrics halSum, ref Program.HalsteadMetrics halNet)
         {
             if (m.Kon_metrics.Fcnt > 0) m.Kon_metrics.Favg /= m.Kon_metrics.Fcnt;
             if (m.Loc_metrics.Fcnt > 0) m.Loc_metrics.Favg /= m.Loc_metrics.Fcnt;
@@ -765,7 +765,7 @@ namespace ProjectParser
 
                 if (s.From != from)
                 {
-                    AvgBackwardMetrics(m, hal_sum, hal_net);
+                    AvgBackwardMetrics(m, ref hal_sum, ref hal_net);
 
                     from = s.From;
                     m = s.Chain[0];
@@ -774,16 +774,16 @@ namespace ProjectParser
 
                 if (s.Final)
                 {
-                    AddBackwardMetrics(m, s.Chain, hal_sum, hal_net, h);
+                    AddBackwardMetrics(m, s.Chain, ref hal_sum, ref hal_net, h);
                 }
 
                 idx++;
             }
 
-            AvgBackwardMetrics(m, hal_sum, hal_net);
+            AvgBackwardMetrics(m, ref hal_sum, ref hal_net);
         }
 
-        private static void AddBackwardMetrics(JsonMethod m, JsonMethod[] ch, Program.HalsteadMetrics halSum, Program.HalsteadMetrics halNet, HashSet<int> h)
+        private static void AddBackwardMetrics(JsonMethod m, JsonMethod[] ch, ref Program.HalsteadMetrics halSum, ref Program.HalsteadMetrics halNet, HashSet<int> h)
         {
             int kon_sum = 0;
             int kon_net = 0;
@@ -803,7 +803,7 @@ namespace ProjectParser
                 kon_sum += n.Kon;
                 loc_sum += n.Loc;
                 cyc_sum += n.Cyc;
-                hal_sum.Merge(n.Hal);
+                hal_sum = hal_sum.Merge(n.Hal) as Program.HalsteadMetrics;
                 fanin_sum += n.CalledBy.Count;
                 fanout_sum += n.Calls.Count;
                 if (h.Contains(n.Id) == false)
@@ -812,7 +812,7 @@ namespace ProjectParser
                     kon_net += n.Kon;
                     loc_net += n.Loc;
                     cyc_net += n.Cyc;
-                    hal_net.Merge(n.Hal);
+                    hal_net = hal_net.Merge(n.Hal) as Program.HalsteadMetrics;
                     fanin_net += n.CalledBy.Count;
                     fanout_net += n.Calls.Count;
                 }
@@ -820,14 +820,14 @@ namespace ProjectParser
             m.Kon_metrics.AddBackwardMetrics(kon_sum, kon_net);
             m.Loc_metrics.AddBackwardMetrics(loc_sum, loc_net);
             m.Cyc_metrics.AddBackwardMetrics(cyc_sum, cyc_net);
-            halSum.Merge(hal_sum);
-            halNet.Merge(hal_net);
+            halSum = halSum.Merge(hal_sum) as Program.HalsteadMetrics;
+            halNet = halNet.Merge(hal_net) as Program.HalsteadMetrics;
             m.Hal_metrics.AddBackwardMetrics(hal_sum.GetVolume(), hal_net.GetVolume());
             m.Fanin_metrics.AddBackwardMetrics(fanin_sum, fanin_net);
             m.Fanout_metrics.AddBackwardMetrics(fanout_sum, fanout_net);
         }
 
-        private static void AvgBackwardMetrics(JsonMethod m, Program.HalsteadMetrics halSum, Program.HalsteadMetrics halNet)
+        private static void AvgBackwardMetrics(JsonMethod m, ref Program.HalsteadMetrics halSum, ref Program.HalsteadMetrics halNet)
         {
             if (m.Kon_metrics.Bcnt > 0) m.Kon_metrics.Bavg /= m.Kon_metrics.Bcnt;
             if (m.Loc_metrics.Bcnt > 0) m.Loc_metrics.Bavg /= m.Loc_metrics.Bcnt;
