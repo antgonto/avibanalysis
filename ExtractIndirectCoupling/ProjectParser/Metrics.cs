@@ -160,8 +160,8 @@ namespace ProjectParser
 
         public void AddBackwardMetrics(T s, T n)
         {
-            bmax = Math.Max((dynamic)s, (dynamic)fmax);
-            bmin = Math.Min((dynamic)s, (dynamic)fmin);
+            bmax = Math.Max((dynamic)s, (dynamic)bmax);
+            bmin = Math.Min((dynamic)s, (dynamic)bmin);
             bsum += (dynamic)s;
             bavg += (dynamic)s;
             bnet += (dynamic)n;

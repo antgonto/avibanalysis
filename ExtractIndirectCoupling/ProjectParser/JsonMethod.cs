@@ -770,6 +770,8 @@ namespace ProjectParser
                     from = s.From;
                     m = s.Chain[0];
                     h = new HashSet<int>();
+                    hal_sum = new Program.HalsteadMetrics(0, 0, 0, 0);
+                    hal_net = new Program.HalsteadMetrics(0, 0, 0, 0);
                 }
 
                 if (s.Final)

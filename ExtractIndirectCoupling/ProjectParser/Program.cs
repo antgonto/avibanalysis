@@ -48,6 +48,7 @@ namespace ProjectParser
             string githubToken = @"d4c6dfe55dfb46f1af43e9daf9b244dfd64b4a29";
             string sha_value = @"";
             string sln_path = @"";
+            //string commits = string.Format(@"https://api.github.com/repos/{0}/{1}/commits/2.0?since={2}&until={3}",
             string commits = string.Format(@"https://api.github.com/repos/{0}/{1}/commits?since={2}&until={3}",
             //string commits = string.Format(@"https://api.github.com/repos/{0}/{1}/commits/master?since={2}&until={3}",
             //string commits = string.Format(@"https://api.github.com/repos/{0}/{1}/commits/dev?since={2}&until={3}",
@@ -95,8 +96,10 @@ namespace ProjectParser
                 {
                     ZipArchive zip = new ZipArchive(reader.BaseStream, ZipArchiveMode.Read);
                     zip.ExtractToDirectory(@"R:/_GithubTmp");
-                    //sln_path = @"R:/_GithubTmp/" + zip.Entries[0].FullName + "Nodejs/NodejsTools.sln";    // SI: listo
-                    sln_path = @"R:/_GithubTmp/" + zip.Entries[0].FullName + "Neo4j.Driver/Neo4j.Driver"; // 
+                    //sln_path = @"R:/_GithubTmp/" + zip.Entries[0].FullName + "Nodejs";    // SI: listo
+                    sln_path = @"R:/_GithubTmp/" + zip.Entries[0].FullName + "Neo4j.Driver/Neo4j.Driver"; // SI: listo
+                    //sln_path = @"R:/_GithubTmp/" + zip.Entries[0].FullName + "Obfuscar/"; // obfuscar/obfuscar, SI: listo
+                    //sln_path = @"R:/_GithubTmp/" + zip.Entries[0].FullName + "src"; // log4net - NO: sin commits
                     //sln_path = @"R:/_GithubTmp/" + zip.Entries[0].FullName + "src"; // mongo-csharp-driver  // NO: muy grande
                     //sln_path = @"R:/_GithubTmp/" + zip.Entries[0].FullName;    // NETMF/netmf-interpreter -- NO: muy grande
                     //sln_path = @"R:/_GithubTmp/" + zip.Entries[0].FullName; // Rock
@@ -123,7 +126,10 @@ namespace ProjectParser
 
                     //opts.Solutions = new List<string>() { PullGithubZip("microsoft", "nodejstools", fromDate.ToString("yyyy-MM-ddTHH:MM:ssZ"), toDate.ToString("yyyy-MM-ddTHH:MM:ssZ")) };
                     opts.Solutions = new List<string>() { PullGithubZip("neo4j", "neo4j-dotnet-driver", fromDate.ToString("yyyy-MM-ddTHH:MM:ssZ"), toDate.ToString("yyyy-MM-ddTHH:MM:ssZ")) };
+                    //opts.Solutions = new List<string>() { PullGithubZip("obfuscar", "obfuscar", fromDate.ToString("yyyy-MM-ddTHH:mm:ssZ"), toDate.ToString("yyyy-MM-ddTHH:mm:ssZ")) };
+
                     //opts.Solutions = new List<string>() { PullGithubZip("mongodb", "mongo-csharp-driver", fromDate.ToString("yyyy-MM-ddTHH:MM:ssZ"), toDate.ToString("yyyy-MM-ddTHH:MM:ssZ")) };
+                    //opts.Solutions = new List<string>() { PullGithubZip("apache", "logging-log4net", fromDate.ToString("yyyy-MM-ddTHH:MM:ssZ"), toDate.ToString("yyyy-MM-ddTHH:MM:ssZ")) };
                     //opts.Solutions = new List<string>() { PullGithubZip("SparkDevNetwork", "Rock", fromDate.ToString("yyyy-MM-ddTHH:MM:ssZ"), toDate.ToString("yyyy-MM-ddTHH:MM:ssZ")) };
                     Console.WriteLine(opts.Solutions.First());
 
@@ -837,7 +843,7 @@ namespace ProjectParser
         {
 
             System.IO.StreamWriter output = null;
-            output = new System.IO.StreamWriter(@"" + o.Outdir + @"dataset.csv");
+            output = new System.IO.StreamWriter(@"" + o.Outdir + o.Name + @"-dataset.csv");
 
             output.WriteLine(
                 @"method;loc;cyc;hal;mi;fanin;fanout;avglocf;" +
@@ -977,6 +983,9 @@ namespace ProjectParser
             //    @"icfnk;icfnl;icfnc;icfnh;icfnm;icfni;icfno");
 
             List<string> selected = new List<string>() {
+                //"Obfuscar.Obfuscator.RunRules()",
+                //"Obfuscar.Obfuscator.RenameMethods()",
+                //"Obfuscar.Obfuscator.RenameFields()"
                 "Neo4j.Driver.Internal.Driver.Dispose()",
                 "Neo4j.Driver.Internal.Connector.MessageResponseHandler.HandleSuccessMessage(IDictionary<string, object>)",
                 "Neo4j.Driver.Internal.Session.BeginTransaction()"
@@ -1011,7 +1020,7 @@ namespace ProjectParser
                           @"{73:d};{74:d};{75:d};{76:f};{77:f};{78:d};{79:d};" +
                           @"{80:d};{81:d};{82:d};{83:f};{84:f};{85:d};{86:d};" +
                           @"{87:d};{88:d};{89:d};{90:f};{91:f};{92:d};{93:d}",
-                    m.Fullname, 30 - o.Month, m.Loc, m.Cyc, m.Hal.GetVolume(), m.Midx, m.CalledBy.Count,
+                    m.Fullname, 120 - o.Month, m.Loc, m.Cyc, m.Hal.GetVolume(), m.Midx, m.CalledBy.Count,
                     m.Calls.Count, m.Loc_metrics.Bnet / m.Kon_metrics.Bnet,
                     m.Cyc_metrics.Bnet / m.Kon_metrics.Bnet, m.Kon_metrics.Bnet,
                     m.Kon_metrics.Bsum, m.Kon_metrics.Bcnt,
