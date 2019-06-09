@@ -1,0 +1,16 @@
+﻿
+--name DCI.SIA --outdir "C:/Users/jnavas/source/repos/output/" --pause true --solutions "C:/Users/jnavas/source/repos/DCI-SLN/Framework/DCI.Seguridad/DCI.Seguridad.sln" "C:/Users/jnavas/source/repos/DCI-SLN/DCI_SIA/DCI_SIA.sln"
+
+--name Roslyn --outdir "C:/Users/jnavas/source/repos/output/" --pause true --solutions "C:/Users/jnavas/source/repos/roslyn-master/Roslyn.sln"
+
+--name Example --outdir "C:/Users/jnavas/source/repos/output/" --pause true --solutions "C:/Users/jnavas/source/repos/Example/Example.sln"
+
+--name Newtonsoft --outdir "C:/Users/jnavas/source/repos/output/" --pause true --solutions "R:/Newtonsoft.Json-master/Src/Newtonsoft.Json.sln"
+
+--name NetMF --outdir "C:/Users/jnavas/source/repos/output/" --pause true --solutions "R:/netmf-interpreter-dev/TinyCLR.sln" "R:/netmf-interpreter-dev/TinyCLR_server.sln"
+
+--name Nodejs --outdir "C:/Users/jnavas/source/repos/output/" --pause true --solutions "R:/nodejstools-master/Nodejs/NodejsTools.sln"
+
+
+
+
