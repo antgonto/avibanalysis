@@ -1,0 +1,102 @@
+Cantidad de clones generados de forma individual = 3
+*****************************************************
+Clon tipo = 1 : 
+Cantidad de copias = 4 : 
+-------------------------------------------------------------
+	Copia clon ID = 1
+	Cantidad de sentencias = 36
+
+	Ubicación de la copia = staticMethod1
+
+		Pareja: Copia clon ID: 1 y Copia clon ID:2
+		Pareja: Copia clon ID: 1 y Copia clon ID:3
+		Pareja: Copia clon ID: 1 y Copia clon ID:4
+
+-------------------------------------------------------------
+	Copia clon ID = 2
+	Cantidad de sentencias = 36
+
+	Ubicación de la copia = staticMethod6
+
+		Pareja: Copia clon ID: 2 y Copia clon ID:3
+		Pareja: Copia clon ID: 2 y Copia clon ID:4
+
+-------------------------------------------------------------
+	Copia clon ID = 3
+	Cantidad de sentencias = 36
+
+	Ubicación de la copia = staticMethod4
+
+		Pareja: Copia clon ID: 3 y Copia clon ID:4
+
+-------------------------------------------------------------
+	Copia clon ID = 4
+	Cantidad de sentencias = 36
+
+	Ubicación de la copia = nonStaticMethod
+
+
+*****************************************************
+Clon tipo = 1 : 
+Cantidad de copias = 4 : 
+-------------------------------------------------------------
+	Copia clon ID = 5
+	Cantidad de sentencias = 19
+
+	Ubicación de la copia = staticMethod4
+
+		Pareja: Copia clon ID: 5 y Copia clon ID:6
+		Pareja: Copia clon ID: 5 y Copia clon ID:7
+		Pareja: Copia clon ID: 5 y Copia clon ID:8
+
+-------------------------------------------------------------
+	Copia clon ID = 6
+	Cantidad de sentencias = 19
+
+	Ubicación de la copia = staticMethod6
+
+		Pareja: Copia clon ID: 6 y Copia clon ID:7
+		Pareja: Copia clon ID: 6 y Copia clon ID:8
+
+-------------------------------------------------------------
+	Copia clon ID = 7
+	Cantidad de sentencias = 19
+
+	Ubicación de la copia = staticMethod6
+
+		Pareja: Copia clon ID: 7 y Copia clon ID:8
+
+-------------------------------------------------------------
+	Copia clon ID = 8
+	Cantidad de sentencias = 19
+
+	Ubicación de la copia = staticMethod5
+
+
+*****************************************************
+Clon tipo = 1 : 
+Cantidad de copias = 3 : 
+-------------------------------------------------------------
+	Copia clon ID = 9
+	Cantidad de sentencias = 27
+
+	Ubicación de la copia = nonStaticMethod
+
+		Pareja: Copia clon ID: 9 y Copia clon ID:10
+		Pareja: Copia clon ID: 9 y Copia clon ID:11
+
+-------------------------------------------------------------
+	Copia clon ID = 10
+	Cantidad de sentencias = 27
+
+	Ubicación de la copia = staticMethod1
+
+		Pareja: Copia clon ID: 10 y Copia clon ID:11
+
+-------------------------------------------------------------
+	Copia clon ID = 11
+	Cantidad de sentencias = 27
+
+	Ubicación de la copia = staticMethod3
+
+
