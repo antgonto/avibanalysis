@@ -47,14 +47,24 @@ namespace GeneracionDeGrafos.Methods
             cantidadDeMetodos++;
         }
 
-        public void write(StreamWriter writer) {
+        //TODO,
+
+        public void WriteMethod(StreamWriter writer) {
 
             //Head of the method, the signature, method access and parameters.
-            writeSignature(writer);
+            WriteSignature(writer);
 
+            //TODO
             //Body of the method, the invocations to another methods.
-            foreach (SimpleMethod metodo in metodosInvocados)
-                metodo.writeInvocation(writer);
+            foreach (SimpleMethod metodo in metodosInvocados) //{
+                // Si el método a invocar pertenence a la misma clase que la clase contenedora
+                // este método, su llamada debería ser diferente.
+                //if (metodo.claseContenedora == claseContenedora)
+                //    metodo.WriteInnerInvocation(writer);
+                //else
+                //metodo.WriteOuterInvocation();
+                metodo.WriteInvocation(writer);
+            //}
 
             //Close de the method.
             writer.WriteLine(Templates.simpleMethodTail);
@@ -62,12 +72,17 @@ namespace GeneracionDeGrafos.Methods
 
         }
 
-        protected abstract void writeSignature(StreamWriter writer);
+        protected abstract void WriteSignature(StreamWriter writer);
 
-        protected abstract void writeInvocation(StreamWriter writer);
+        protected abstract void WriteInvocation(StreamWriter writer);
 
-        protected string getParameters() {
+        //TODO
+        //protected abstract void WriteInnerInvocation(StreamWriter writer);
+        //protected abstract void WriteOuterInvocation(StreamWriter writer);
+
+        protected string GetParameters() {
             return Parameter.formatParameters(parametros);
         }
     }
+
 }

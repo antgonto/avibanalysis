@@ -55,6 +55,7 @@
     <Compile Include="Methods\Parameter.cs" />
     <Compile Include="Methods\SimpleMethod.cs" />
     <Compile Include="Methods\StaticMethod.cs" />
+    <Compile Include="Namespaces\INamespace.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Keywords\Types.cs" />

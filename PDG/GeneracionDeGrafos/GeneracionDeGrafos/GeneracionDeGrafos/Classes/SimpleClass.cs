@@ -15,7 +15,7 @@ namespace GeneracionDeGrafos.Classes
         public SimpleClass() : base() {
         }
 
-        protected override void writeClassHead(StreamWriter writer) {
+        protected override void WriteClassHead(StreamWriter writer) {
             writer.WriteLine(Templates.simpleClassHead, name);
             writer.WriteLine();
         }

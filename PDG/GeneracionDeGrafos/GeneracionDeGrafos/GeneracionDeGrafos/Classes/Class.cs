@@ -13,6 +13,7 @@ namespace GeneracionDeGrafos.Classes
     {
         public int identificador { get; set; }
         public string name { get; set; }
+        public int complejidadCiclomatica { get; set; }
         public List<Method> metodos { get; set; } = new List<Method>();
         public static int cantidadDeClases { get; set; }
         
@@ -24,7 +25,7 @@ namespace GeneracionDeGrafos.Classes
             name = "Class" + identificador.ToString();
         }
 
-        public void write(string path) {
+        public void WriteClass(string path) {
 
             // Crear el objeto necesario para escribir archivos.
             string pathClase = Path.Combine(path, (name + ".cs"));
@@ -35,11 +36,11 @@ namespace GeneracionDeGrafos.Classes
             writer.WriteLine(Templates.namespaceHead);
 
             // Abre la definición de la clase, modificadores, nombre, herencias.
-            writeClassHead(writer);
+            WriteClassHead(writer);
 
             // Escribir la definición de cada método.
             foreach (var metodo in metodos) {
-                metodo.write(writer);
+                metodo.WriteMethod(writer);
             }
 
             // Cerrar la definición de la clase.
@@ -53,7 +54,7 @@ namespace GeneracionDeGrafos.Classes
             fileStream.Close();
         }
 
-        protected abstract void writeClassHead(StreamWriter writer);
+        protected abstract void WriteClassHead(StreamWriter writer);
         
     }
 }

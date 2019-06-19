@@ -18,19 +18,19 @@ namespace GeneracionDeGrafos.Methods
 
         /* Método para invocar un método normal, sin ningún tipo de modificador.
          */
-        protected override void writeInvocation(StreamWriter writer) {
+        protected override void WriteInvocation(StreamWriter writer) {
             //Name of class instance
             string instanceName = string.Format(Templates.nameInstaceClass, cantidadInvocaciones);
 
             //invocation
             writer.WriteLine(Templates.instanceSimpleClass, claseContenedora.name, instanceName);
-            writer.WriteLine(Templates.invokeSimpleMethodFromClass, instanceName, name, getParameters());
+            writer.WriteLine(Templates.invokeSimpleMethodFromClass, instanceName, name, GetParameters());
         }
 
         /* Método para escribir la firma de un método normal
          */
-        protected override void writeSignature(StreamWriter writer) {
-            writer.WriteLine(Templates.simpleMethodHead, accessModifier, returnType, name, "");
+        protected override void WriteSignature(StreamWriter writer) {
+            writer.WriteLine(Templates.simpleMethodHead, accessModifier, returnType, name, GetParameters());
         }
         
     }

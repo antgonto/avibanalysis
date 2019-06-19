@@ -232,7 +232,7 @@ namespace GeneracionDeGrafos
             DirectoryInfo dir = Directory.CreateDirectory(configuracion.DirectorioDelCodigo);
             
             foreach (var clase in clases) {
-                clase.write(configuracion.DirectorioDelCodigo);
+                clase.WriteClass(configuracion.DirectorioDelCodigo);
             }
 
         }

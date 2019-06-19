@@ -16,14 +16,14 @@ namespace GeneracionDeGrafos.Methods
 
         /* Método para invocar un método estático.
          */
-        protected override void writeInvocation(StreamWriter writer) {
+        protected override void WriteInvocation(StreamWriter writer) {
             throw new NotImplementedException();
         }
 
         /* Método para escribir la firma de un método estático.
          */
-        protected override void writeSignature(StreamWriter writer) {
-            writer.WriteLine(Templates.staticMethodHead, accessModifier, returnType, name, getParameters());
+        protected override void WriteSignature(StreamWriter writer) {
+            writer.WriteLine(Templates.staticMethodHead, accessModifier, returnType, name, GetParameters());
         }
     }
 }
