@@ -5,7 +5,10 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.BlockComment;
+import org.eclipse.jdt.core.dom.Comment;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.LineComment;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.NumberLiteral;
@@ -31,7 +34,10 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Dictionary;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -42,6 +48,9 @@ import java.util.Set;
 
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 
 public class Main {
 	static int clonesID = 0;
@@ -71,21 +80,23 @@ public class Main {
 	static int maxSentencesDeleteType3;
 	static int minSentencesAddType3;
 	static int maxSentencesAddType3;
+	static int countClonesByType[] = new int[4];
 	static String sourceSnippets = "";
 	static String sourceProject = "";
-	static String pathDescripcion = "";
+	static String outputJson = "";
 	static BufferedWriter writerDescription;
+	static CompilationUnit cuProject;
+	static ArrayList<GroupClone> groupByClone = new ArrayList();
 	public static void main(String[] args) {
 		try{
 			/*
 			 * LOAD ALL PARAMETERS FROM JSON
 			 */
-			String text = new String(Files.readAllBytes(Paths.get("C:\\Users\\Steven\\Documents\\GitHub\\avibanalysis\\Code-Cloner Java\\Files\\Config.js")), StandardCharsets.UTF_8);
+			String text = new String(Files.readAllBytes(Paths.get("C:\\Users\\Steven\\OneDrive - Estudiantes ITCR\\Github\\Clone-Java\\Code-Cloner Java\\Files\\Config.js")), StandardCharsets.UTF_8);
 			JSONObject obj = new JSONObject(text);
 			snippets = obj.getString("snippets");
 			pathSalida = obj.getString("salida");
-			pathDescripcion = obj.getString("description");
-			writerDescription  = new BufferedWriter(new FileWriter(pathDescripcion));
+			outputJson = obj.getString("outputJson");
 			project = obj.getString("project");
 			minLimit = obj.getInt("minLimit");
 			maxLimit = obj.getInt("maxLimit");
@@ -104,12 +115,12 @@ public class Main {
 			/*
 			 * LOAD AND CREATE COMPILATION UNIT FROM SNIPPETS AND PROJECT
 			 */
-			int typeClone = 3;
+			int typeClone = 1;
 			Document documentSnippets = new org.eclipse.jface.text.Document(sourceSnippets);
 			CompilationUnit cu = parse(documentSnippets);
 
 			Document documentProject = new org.eclipse.jface.text.Document(sourceProject);
-			CompilationUnit cuProject = parse(documentProject);
+			cuProject = parse(documentProject);
 
 			AST astProject = cuProject.getAST();
 			ASTRewrite rewriteProject = ASTRewrite.create(astProject);
@@ -118,17 +129,14 @@ public class Main {
 			getMethodsFromProject(cuProject);
 
 			int copy = 1;
-			writerDescription.write("Cantidad de clones generados de forma individual = "+String.valueOf(QuantityOfClone)+"\n");
 			for(int i = 0; i<QuantityOfClone;i++)
 			{
 				Random rand = new Random();
 				int numberOfCopy = rand.nextInt((maxCopy - minCopy))+minCopy;
-				writerDescription.write("*****************************************************\n");
-				writerDescription.write("Clon tipo = "+String.valueOf(typeClone)+" : \n");
-				writerDescription.write("Cantidad de copias = "+String.valueOf(numberOfCopy)+" : \n");
-				createNewClons(astProject,rewriteProject,minLimitSentences,maxLimitSentences,numberOfCopy,typeClone);
+				createNewClons(astProject,rewriteProject,minLimitSentences,maxLimitSentences,numberOfCopy,typeClone,i);
+				countClonesByType[typeClone]++;
 			}
-
+			
 			TextEdit edits2 = rewriteProject.rewriteAST(documentProject,null);
 			//TextEdit edits = rewriteSnippets.rewriteAST(documentSnippets,null);
 			edits2.apply(documentProject);
@@ -136,14 +144,76 @@ public class Main {
 			BufferedWriter writer = new BufferedWriter(new FileWriter(pathSalida));
 			writer.write(documentProject.get());
 			writer.close();
-			writerDescription.close();
+			//Etapa de lectura de la salida para la obtención de las nuevas lineas de código.
+
+			String sourceOutput = new String(Files.readAllBytes(Paths.get(pathSalida)), StandardCharsets.UTF_8);
+			Document documentOutput = new org.eclipse.jface.text.Document(sourceOutput);
+			CompilationUnit cuOutput = parse(documentOutput);
+			AST astOutput = cuOutput.getAST();
+			getLines(cuOutput,documentOutput);
+			
+			//JSON
+			JSONObject json = new JSONObject();
+			Date date = new Date();
+			DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+			json.put("Date",dateFormat.format(date));
+			json.put("Quantity clones type 1",countClonesByType[1]);
+			json.put("Quantity clones type 2",countClonesByType[2]);
+			json.put("Quantity clones type 3",countClonesByType[3]);
+			JSONArray cloneList = new JSONArray();
+			for(int k = 0; k<groupByClone.size();k++)
+			{
+				//json.put("Clone : "+k,);
+				JSONArray copiasList = new JSONArray();
+				ArrayList<CloneCopy> clones= groupByClone.get(k).arrayClones;
+				for(int i = 0;i<clones.size();i++)
+				{
+					JSONObject copia  = new JSONObject();
+					copia.put("ID:",clones.get(i).ID);
+					copia.put("StartLine:",clones.get(i).startLine);
+					copia.put("EndLine:",clones.get(i).endLine);
+					copia.put("Name Method Ubication",clones.get(i).name);
+					JSONArray cloneListPair = new JSONArray();
+					for(int j = i+1;j<clones.size();j++)
+					{
+						JSONObject pair = new JSONObject();
+						pair.put("ID:",clones.get(j).ID);
+						pair.put("StartLine:",clones.get(j).startLine);
+						pair.put("EndLine:",clones.get(j).endLine);
+						pair.put("Name Method Ubication",clones.get(j).name);
+						cloneListPair.put(pair);
+					}
+					copia.put("Pairs", cloneListPair);
+					copiasList.put(copia);
+				}
+				JSONObject copiasJSON = new JSONObject();
+				copiasJSON.put("Copias", copiasList);
+				copiasJSON.put("Tipo de clon",groupByClone.get(k).typeClone);
+				cloneList.put(copiasJSON);
+			}
+			json.put("Clones", cloneList);
+			
+			try (FileWriter file = new FileWriter(outputJson)) {
+				JsonParser jp = new JsonParser();
+				JsonElement je = jp.parse(json.toString());
+				Gson gson = new GsonBuilder().setPrettyPrinting().create();
+				String prettyJsonString = gson.toJson(je);
+	            file.write(prettyJsonString);
+	            file.flush();
+	 
+	        } catch (IOException e) {
+	            e.printStackTrace();
+	        }
+			
+			
+			
 
 		}
 		catch(Exception ex){
 			System.out.println(ex.toString());
 		}
 	}
-	public static void createNewClons(AST ast, ASTRewrite rewriter,int minBound, int maxBound,int cantidadClones, int tipoClon) throws JavaModelException, IllegalArgumentException, MalformedTreeException, BadLocationException, IOException 
+	public static void createNewClons(AST ast, ASTRewrite rewriter,int minBound, int maxBound,int cantidadClones, int tipoClon, int ID_CLONE) throws JavaModelException, IllegalArgumentException, MalformedTreeException, BadLocationException, IOException 
 	{
 		Random rand = new Random();
 		int numberOfSentences = rand.nextInt((maxBound - minBound) + 1);
@@ -155,10 +225,10 @@ public class Main {
 		{
 			CloneCopy clonCopy = new CloneCopy(++clonesID);
 			clones.add(clonCopy);
-			String comment = "//Start Clon Type "+String.valueOf(tipoClon)+" ID: "+String.valueOf(clonesID);
+			String comment = "//START @..CLON:"+ID_CLONE+"@..COPY:"+i+"@..ID_GENERAL:"+clonesID;
 			Statement placeHolderStart = (Statement) rewriter.createStringPlaceholder(comment, ASTNode.EMPTY_STATEMENT);
 			clones.get(i).statements.add(placeHolderStart);
-			comment = "//End Clon Type "+String.valueOf(tipoClon)+" ID: "+String.valueOf(clonesID);
+			comment = "//END @..CLON:"+ID_CLONE+"@..COPY:"+i+"@..ID_GENERAL:"+clonesID;
 			Statement placeHolderEnd = (Statement) rewriter.createStringPlaceholder(comment, ASTNode.EMPTY_STATEMENT);
 			clones.get(i).statements.add(placeHolderEnd);
 		}
@@ -216,15 +286,16 @@ public class Main {
 		for (int i =0;i<cantidadClones;i++)
 		{
 			MethodDeclaration methodSelected = methodOfProject.get(rand.nextInt(methodOfProject.size()));
-			clones.get(i).ubication = methodSelected.getName().getIdentifier();
+			methodSelected.getParent()
+			//clones.get(i).ubication = methodSelected.getName().getIdentifier();
 			ListRewrite listRewrite = rewriter.getListRewrite(methodSelected.getBody(), Block.STATEMENTS_PROPERTY);
+			clones.get(i).name = methodSelected.getName().getIdentifier();
+
 			switch(tipoClon) {
 			case 1:
 				for(int j =0;j<clones.get(i).statements.size();j++)
 				{
-					//Inserto todos los Statements a un metodo.
 					listRewrite.insertLast(clones.get(i).statements.get(j), null);
-					
 				}
 				break;
 			case 2:
@@ -248,21 +319,13 @@ public class Main {
 			}
 		}
 		
+		GroupClone gr = new GroupClone();
+		gr.typeClone = tipoClon;
 		for(int i = 0;i<clones.size();i++)
 		{
-			writerDescription.write("-------------------------------------------------------------\n");
-			writerDescription.write("\tCopia clon ID = "+String.valueOf(clones.get(i).ID)+"\n");
-			writerDescription.write("\tCantidad de sentencias = "+String.valueOf(clones.get(i).statements.size())+"\n\n");
-			writerDescription.write("\tUbicación de la copia = "+clones.get(i).ubication+"\n\n");
-			
-			for(int j = i+1;j<clones.size();j++)
-			{
-				writerDescription.write("\t\tPareja: Copia clon ID: "+String.valueOf(clones.get(i).ID)+" y Copia clon ID:" +String.valueOf(clones.get(j).ID)+ "\n");
-
-			}
-			writerDescription.write("\n");
-			
+			gr.arrayClones.add(clones.get(i));
 		}
+		groupByClone.add(gr);
 		return;
 
 	}
@@ -380,6 +443,63 @@ public class Main {
 
 		});
 		return statement;
+	}
+	
+	public static void getLines(CompilationUnit cu,Document documentOutput)
+	{
+		AST ast = cu.getAST();
+		for(Comment comment: (List<Comment>) cu.getCommentList())
+		{
+			comment.accept(new ASTVisitor() {
+				//by add more visit method like the following below, then all king of statement can be visited.
+				public boolean visit(LineComment node) {
+					int lineNumber = cu.getLineNumber(node.getStartPosition());
+					System.out.println(lineNumber);
+					int start = node.getStartPosition();
+					int end = start + node.getLength();
+					String comment = null;
+					try {
+						comment = documentOutput.get(start, node.getLength());
+						if(comment.contains("START @..CLON")) {
+							String[] parts = comment.split("@");
+							String[] idCloneSplit = parts[1].split(":");
+							String[] idCopySplit = parts[2].split(":");
+							//groupByClone
+							int idClone = Integer.parseInt(idCloneSplit[1]);
+							int idCopy = Integer.parseInt(idCopySplit[1]);
+							CloneCopy clone = groupByClone.get(idClone).arrayClones.get(idCopy);
+							clone.startLine = lineNumber +1;
+							System.out.println("Linecita "+clone.startLine);
+						}
+						else
+						{
+							if(comment.contains("END @..CLON")) {
+								String[] parts = comment.split("@");
+								String[] idCloneSplit = parts[1].split(":");
+								String[] idCopySplit = parts[2].split(":");
+								//groupByClone
+								int idClone = Integer.parseInt(idCloneSplit[1]);
+								int idCopy = Integer.parseInt(idCopySplit[1]);
+								CloneCopy clone = groupByClone.get(idClone).arrayClones.get(idCopy);
+								clone.endLine = lineNumber -1;
+								System.out.println("Linecita Final "+clone.startLine);
+							}
+						}
+						
+					} catch (BadLocationException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					//System.out.println(comment);
+					return true;
+					}});
+		}
+		ArrayList<Integer> lineasNuevas = new ArrayList();
+		System.out.println(lineasNuevas.size());
+		for(int i = 0; i<lineasNuevas.size();i++)
+		{
+			System.out.println("Linea: "+lineasNuevas.get(i));
+		}
 	}
 
 

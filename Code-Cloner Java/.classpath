@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="src" path="Cloner/src/main/java"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/OneDrive - Estudiantes ITCR/Github/avibanalysis/Code-Cloner Java/Jar JDT/commons-collections-3.2.1.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/OneDrive - Estudiantes ITCR/Github/avibanalysis/Code-Cloner Java/Jar JDT/commons-configuration-1.6.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/OneDrive - Estudiantes ITCR/Github/avibanalysis/Code-Cloner Java/Jar JDT/commons-lang-2.5.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/OneDrive - Estudiantes ITCR/Github/avibanalysis/Code-Cloner Java/Jar JDT/commons-logging-1.1.1.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/OneDrive - Estudiantes ITCR/Github/avibanalysis/Code-Cloner Java/Jar JDT/gson-2.6.2.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/OneDrive - Estudiantes ITCR/Github/avibanalysis/Code-Cloner Java/Jar JDT/json-20180813.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/OneDrive - Estudiantes ITCR/Github/avibanalysis/Code-Cloner Java/Jar JDT/org.eclipse.core.contenttype_3.4.1.R35x_v20090826-0451.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/OneDrive - Estudiantes ITCR/Github/avibanalysis/Code-Cloner Java/Jar JDT/org.eclipse.core.jobs_3.4.100.v20090429-1800.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/OneDrive - Estudiantes ITCR/Github/avibanalysis/Code-Cloner Java/Jar JDT/org.eclipse.core.resources_3.5.2.R35x_v20091203-1235.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/OneDrive - Estudiantes ITCR/Github/avibanalysis/Code-Cloner Java/Jar JDT/org.eclipse.core.runtime_3.5.0.v20090525.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/OneDrive - Estudiantes ITCR/Github/avibanalysis/Code-Cloner Java/Jar JDT/org.eclipse.equinox.common_3.5.1.R35x_v20090807-1100.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/OneDrive - Estudiantes ITCR/Github/avibanalysis/Code-Cloner Java/Jar JDT/org.eclipse.equinox.preferences_3.2.301.R35x_v20091117.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/OneDrive - Estudiantes ITCR/Github/avibanalysis/Code-Cloner Java/Jar JDT/org.eclipse.jdt.astview_1.1.9.201406161921.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/OneDrive - Estudiantes ITCR/Github/avibanalysis/Code-Cloner Java/Jar JDT/org.eclipse.osgi_3.5.2.R35x_v20100126.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Steven/.m2/repository/org/eclipse/jdt/org.eclipse.jdt.core/3.7.1/org.eclipse.jdt.core-3.7.1.jar" sourcepath="C:/Users/Steven/.m2/repository/org/eclipse/jdt/org.eclipse.jdt.core/3.7.1/org.eclipse.jdt.core-3.7.1-sources.jar">
+		<attributes>
+			<attribute name="maven.pomderived" value="true"/>
+			<attribute name="maven.groupId" value="org.eclipse.jdt"/>
+			<attribute name="maven.artifactId" value="org.eclipse.jdt.core"/>
+			<attribute name="maven.version" value="3.7.1"/>
+			<attribute name="maven.scope" value="compile"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Steven/.m2/repository/org/eclipse/text/org.eclipse.text/3.5.101/org.eclipse.text-3.5.101.jar" sourcepath="C:/Users/Steven/.m2/repository/org/eclipse/text/org.eclipse.text/3.5.101/org.eclipse.text-3.5.101-sources.jar">
+		<attributes>
+			<attribute name="maven.pomderived" value="true"/>
+			<attribute name="maven.groupId" value="org.eclipse.text"/>
+			<attribute name="maven.artifactId" value="org.eclipse.text"/>
+			<attribute name="maven.version" value="3.5.101"/>
+			<attribute name="maven.scope" value="compile"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

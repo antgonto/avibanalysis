@@ -1,8 +1,8 @@
 {
-	"snippets" : "C:\\Users\\Steven\\Documents\\GitHub\\avibanalysis\\Code-Cloner Java\\Files\\Source\\Snippets.java",
-	"project" : "C:\\Users\\Steven\\Documents\\GitHub\\avibanalysis\\Code-Cloner Java\\Files\\Source\\Project.java",
-	"salida" : "C:\\Users\\Steven\\Documents\\GitHub\\avibanalysis\\Code-Cloner Java\\Files\\Source\\Salida.java",
-	"description" : "C:\\Users\\Steven\\Documents\\GitHub\\avibanalysis\\Code-Cloner Java\\Files\\Source\\Descripcion.txt",
+	"snippets" : "C:\\Users\\Steven\\OneDrive - Estudiantes ITCR\\Github\\avibanalysis\\Code-Cloner Java\\Files\\Source\\Snippets.java",
+	"project" : "C:\\Users\\Steven\\OneDrive - Estudiantes ITCR\\Github\\avibanalysis\\Code-Cloner Java\\Files\\Source\\Project.java",
+	"salida" : "C:\\Users\\Steven\\OneDrive - Estudiantes ITCR\\Github\\avibanalysis\\Code-Cloner Java\\Files\\Source\\Salida.java",
+	"description" : "C:\\Users\\Steven\\OneDrive - Estudiantes ITCR\\Github\\avibanalysis\\Code-Cloner Java\\Files\\Source\\Descripcion.txt",
 	"minLimit" : 5,
 	"maxLimit" : 5,
 	"minLimitSentences" : 15,

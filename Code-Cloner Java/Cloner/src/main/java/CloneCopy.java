@@ -5,7 +5,9 @@ import org.eclipse.jdt.core.dom.Statement;
 public class CloneCopy {
 	ArrayList<Statement> statements = new ArrayList();
 	int ID = -1;
-	String ubication = "";
+	int startLine = -1;
+	int endLine = -1;
+	String name = "";
 	
 	public CloneCopy(int _ID)
 	{

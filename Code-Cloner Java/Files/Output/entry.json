@@ -1,0 +1,12 @@
+{
+"projectName":"Diego",
+"projectId":"2",
+"projectPath":"/home/ariel/TEC/diseño/implementation/ClonesFinder/resources",
+"commentaries":"yes",
+"whiteSpaces":"No",
+"granularity":["character"],
+"kindOfClone":["2"],
+"method":["hash","shingle","matrix"],
+"credentials":"my_credentials_in_mongo_db",
+"minimumSize":"200"
+}
