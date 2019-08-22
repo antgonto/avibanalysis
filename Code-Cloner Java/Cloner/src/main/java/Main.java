@@ -26,6 +26,7 @@ import org.eclipse.text.edits.TextEdit;
 import org.json.*;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -39,6 +40,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Dictionary;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
@@ -56,7 +58,6 @@ public class Main {
 	static int clonesID = 0;
 	static int identifierConsecutive = 0;
 	static int numberLiterals = 0;
-	final static ArrayList<MethodDeclaration> methodOfProject = new ArrayList();
 	//Snippets de 1 sentencia.
 	final static ArrayList listSnippetsSizeOne = new ArrayList();
 	//Snippets de 2 sentencias.
@@ -69,6 +70,14 @@ public class Main {
 	static String snippets = "";
 	static String pathSalida = "" ;
 	static String project = "";
+	
+	static String[] keys;
+	final static Map<String, ArrayList<MethodDeclaration>> methodMap = new HashMap<String, ArrayList<MethodDeclaration>>();
+	final static Map<String, String> javaRootMap = new HashMap<String, String>(); // Root - Content of file.
+	final static ArrayList<String> javaRootMapOutput = new ArrayList(); // Root - Content of file.
+	final static Map<String, AST> astMap = new HashMap<String, AST>(); // Root - Content of file.
+	final static Map<String, ASTRewrite> astRewriteMap = new HashMap<String, ASTRewrite>(); // Root - Content of file.
+
 	static int minLimit;
 	static int maxLimit;
 	static int minCopy;
@@ -110,122 +119,203 @@ public class Main {
 			minSentencesAddType3 = obj.getInt("minSentencesAddType3");
 			maxSentencesAddType3 = obj.getInt("maxSentencesAddType3");
 			String sourceSnippets = new String(Files.readAllBytes(Paths.get(snippets)), StandardCharsets.UTF_8);
-			String sourceProject = new String(Files.readAllBytes(Paths.get(project)), StandardCharsets.UTF_8);
-
+			//
+			getJavaFilesInput(project);
 			/*
 			 * LOAD AND CREATE COMPILATION UNIT FROM SNIPPETS AND PROJECT
 			 */
-			int typeClone = 1;
 			Document documentSnippets = new org.eclipse.jface.text.Document(sourceSnippets);
-			CompilationUnit cu = parse(documentSnippets);
-
-			Document documentProject = new org.eclipse.jface.text.Document(sourceProject);
-			cuProject = parse(documentProject);
-
-			AST astProject = cuProject.getAST();
-			ASTRewrite rewriteProject = ASTRewrite.create(astProject);
-
-			getSnippets(cu);
-			getMethodsFromProject(cuProject);
+			CompilationUnit cuSnippets = parse(documentSnippets);
+			getSnippets(cuSnippets);
+		
 
 			int copy = 1;
 			for(int i = 0; i<QuantityOfClone;i++)
 			{
+				
 				Random rand = new Random();
+				int typeClone = rand.nextInt(3)+1;
 				int numberOfCopy = rand.nextInt((maxCopy - minCopy))+minCopy;
-				createNewClons(astProject,rewriteProject,minLimitSentences,maxLimitSentences,numberOfCopy,typeClone,i);
+				
+				createNewClons(minLimitSentences,maxLimitSentences,numberOfCopy,typeClone,i);
 				countClonesByType[typeClone]++;
 			}
 			
-			TextEdit edits2 = rewriteProject.rewriteAST(documentProject,null);
-			//TextEdit edits = rewriteSnippets.rewriteAST(documentSnippets,null);
-			edits2.apply(documentProject);
-
-			BufferedWriter writer = new BufferedWriter(new FileWriter(pathSalida));
-			writer.write(documentProject.get());
-			writer.close();
+			writeOutput(project,pathSalida);
+        	
 			//Etapa de lectura de la salida para la obtención de las nuevas lineas de código.
-
-			String sourceOutput = new String(Files.readAllBytes(Paths.get(pathSalida)), StandardCharsets.UTF_8);
-			Document documentOutput = new org.eclipse.jface.text.Document(sourceOutput);
-			CompilationUnit cuOutput = parse(documentOutput);
-			AST astOutput = cuOutput.getAST();
-			getLines(cuOutput,documentOutput);
-			
-			//JSON
-			JSONObject json = new JSONObject();
-			Date date = new Date();
-			DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-			json.put("Date",dateFormat.format(date));
-			json.put("Quantity clones type 1",countClonesByType[1]);
-			json.put("Quantity clones type 2",countClonesByType[2]);
-			json.put("Quantity clones type 3",countClonesByType[3]);
-			JSONArray cloneList = new JSONArray();
-			for(int k = 0; k<groupByClone.size();k++)
+			for(int i = 0; i<javaRootMapOutput.size();i++)
 			{
-				//json.put("Clone : "+k,);
-				JSONArray copiasList = new JSONArray();
-				ArrayList<CloneCopy> clones= groupByClone.get(k).arrayClones;
-				for(int i = 0;i<clones.size();i++)
-				{
-					JSONObject copia  = new JSONObject();
-					copia.put("ID:",clones.get(i).ID);
-					copia.put("StartLine:",clones.get(i).startLine);
-					copia.put("EndLine:",clones.get(i).endLine);
-					copia.put("Name Method Ubication",clones.get(i).name);
-					JSONArray cloneListPair = new JSONArray();
-					for(int j = i+1;j<clones.size();j++)
-					{
-						JSONObject pair = new JSONObject();
-						pair.put("ID:",clones.get(j).ID);
-						pair.put("StartLine:",clones.get(j).startLine);
-						pair.put("EndLine:",clones.get(j).endLine);
-						pair.put("Name Method Ubication",clones.get(j).name);
-						cloneListPair.put(pair);
-					}
-					copia.put("Pairs", cloneListPair);
-					copiasList.put(copia);
-				}
-				JSONObject copiasJSON = new JSONObject();
-				copiasJSON.put("Copias", copiasList);
-				copiasJSON.put("Tipo de clon",groupByClone.get(k).typeClone);
-				cloneList.put(copiasJSON);
+				String sourceOutput = new String(Files.readAllBytes(Paths.get(javaRootMapOutput.get(i))), StandardCharsets.UTF_8);
+				Document documentOutput = new org.eclipse.jface.text.Document(sourceOutput);
+				CompilationUnit cuOutput = parse(documentOutput);
+				AST astOutput = cuOutput.getAST();
+				getLines(cuOutput,documentOutput);
 			}
-			json.put("Clones", cloneList);
+			writeJsonLog();
 			
-			try (FileWriter file = new FileWriter(outputJson)) {
-				JsonParser jp = new JsonParser();
-				JsonElement je = jp.parse(json.toString());
-				Gson gson = new GsonBuilder().setPrettyPrinting().create();
-				String prettyJsonString = gson.toJson(je);
-	            file.write(prettyJsonString);
-	            file.flush();
-	 
-	        } catch (IOException e) {
-	            e.printStackTrace();
-	        }
-			
-			
-			
-
 		}
 		catch(Exception ex){
 			System.out.println(ex.toString());
 		}
 	}
-	public static void createNewClons(AST ast, ASTRewrite rewriter,int minBound, int maxBound,int cantidadClones, int tipoClon, int ID_CLONE) throws JavaModelException, IllegalArgumentException, MalformedTreeException, BadLocationException, IOException 
+	public static void writeJsonLog()
+	{
+		JSONObject json = new JSONObject();
+		Date date = new Date();
+		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+		json.put("Date",dateFormat.format(date));
+		json.put("Quantity clones type 1",countClonesByType[1]);
+		json.put("Quantity clones type 2",countClonesByType[2]);
+		json.put("Quantity clones type 3",countClonesByType[3]);
+		JSONArray cloneList = new JSONArray();
+		for(int k = 0; k<groupByClone.size();k++)
+		{
+			//json.put("Clone : "+k,);
+			JSONArray copiasList = new JSONArray();
+			ArrayList<CloneCopy> clones= groupByClone.get(k).arrayClones;
+			
+			JSONObject copia  = new JSONObject();
+			int i = 0;
+			copia.put("ID:",clones.get(i).ID);
+			copia.put("StartLine:",clones.get(i).startLine);
+			copia.put("EndLine:",clones.get(i).endLine);
+			copia.put("Name Method Ubication",clones.get(i).name);
+			copia.put("Path:",clones.get(i).absolutePath);
+			JSONArray cloneListPair = new JSONArray();
+			for(int j = 1;j<clones.size();j++)
+			{
+				JSONObject pair = new JSONObject();
+				pair.put("ID:",clones.get(j).ID);
+				pair.put("StartLine:",clones.get(j).startLine);
+				pair.put("EndLine:",clones.get(j).endLine);
+				pair.put("Name Method Ubication",clones.get(j).name);
+				pair.put("Path:",clones.get(j).absolutePath);
+				cloneListPair.put(pair);
+			}
+			copia.put("Pairs", cloneListPair);
+			copiasList.put(copia);
+			
+			JSONObject copiasJSON = new JSONObject();
+			copiasJSON.put("Copias", copiasList);
+			copiasJSON.put("Tipo de clon",groupByClone.get(k).typeClone);
+			cloneList.put(copiasJSON);
+		}
+		json.put("Clones", cloneList);
+		
+		try (FileWriter file = new FileWriter(outputJson)) {
+			JsonParser jp = new JsonParser();
+			JsonElement je = jp.parse(json.toString());
+			Gson gson = new GsonBuilder().setPrettyPrinting().create();
+			String prettyJsonString = gson.toJson(je);
+            file.write(prettyJsonString);
+            file.flush();
+ 
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+		
+	}
+	public static void getJavaFilesInput(String root) throws IOException, JavaModelException, MalformedTreeException, BadLocationException
+	{
+	    final File folder = new File(root);
+        search(".*\\.java", folder, javaRootMap);
+        keys = javaRootMap.keySet().toArray(new String[javaRootMap.size()]);
+        for (String key : keys)
+        {
+        	Document documentProject = new org.eclipse.jface.text.Document(javaRootMap.get(key));
+			cuProject = parse(documentProject);
+			
+			AST astProject = cuProject.getAST();
+			ASTRewrite rewriteProject = ASTRewrite.create(astProject);
+			astMap.put(key, astProject);
+			astRewriteMap.put(key, rewriteProject);
+			getMethodsFromProject(key, cuProject);
+
+        }
+	}
+	public static void writeOutput(String root, String rootOutput) throws IOException, JavaModelException, MalformedTreeException, BadLocationException
+	{
+	    final File folder = new File(root);
+	    searchFolderOutput(".*\\.java", folder,rootOutput);
+	}
+	
+	public static void search(final String pattern, final File folder, Map<String,String> result) throws IOException {
+        for (final File f : folder.listFiles()) {
+
+            if (f.isDirectory()) {
+                search(pattern, f, result);
+            }
+
+            if (f.isFile()) {
+                if (f.getName().matches(pattern)) {
+                	String sourceProject = new String(Files.readAllBytes(Paths.get(f.getAbsolutePath())), StandardCharsets.UTF_8);
+                    result.put(f.getAbsolutePath(), sourceProject);
+                }
+            }
+
+        }
+    }
+	public static void searchFolderOutput(final String pattern, final File folder, String outputPath) throws IOException, MalformedTreeException, BadLocationException {
+        for (final File f : folder.listFiles()) {
+
+            if (f.isDirectory()) {
+            	String directory = outputPath +"\\"+ f.getName();
+	    	    File dir = new File(directory);
+	    	    if (!dir.exists()) dir.mkdirs();
+	    	    new File(directory);
+            
+            	searchFolderOutput(pattern, f, outputPath + "\\"+ f.getName());
+            }
+
+            if (f.isFile()) {
+                if (f.getName().matches(pattern)) {
+                	ASTRewrite rewriteProject = astRewriteMap.get(f.getAbsolutePath());
+    				Document documentProject = new org.eclipse.jface.text.Document(javaRootMap.get(f.getAbsolutePath()));
+    				TextEdit edits2 = rewriteProject.rewriteAST(documentProject,null);
+    				//TextEdit edits = rewriteSnippets.rewriteAST(documentSnippets,null);
+    				edits2.apply(documentProject);
+    				//MODIFICAR PATH DE SALIDA
+    				BufferedWriter writer = new BufferedWriter(new FileWriter(outputPath+"\\"+f.getName()));
+    				writer.write(documentProject.get());
+    				writer.close();
+    				javaRootMapOutput.add(outputPath+"\\"+f.getName());
+                }
+                else
+                {
+                	String sourceProject = new String(Files.readAllBytes(Paths.get(f.getAbsolutePath())), StandardCharsets.UTF_8);
+                	Document documentProject = new org.eclipse.jface.text.Document(javaRootMap.get(f.getAbsolutePath()));
+                	documentProject.set(sourceProject);
+                	BufferedWriter writer = new BufferedWriter(new FileWriter(outputPath+"\\"+f.getName()));
+    				writer.write(documentProject.get());
+    				writer.close();
+                }
+            }
+
+        }
+    }
+	public static void createNewClons(int minBound, int maxBound,int cantidadClones, int tipoClon, int ID_CLONE) throws JavaModelException, IllegalArgumentException, MalformedTreeException, BadLocationException, IOException 
 	{
 		Random rand = new Random();
 		int numberOfSentences = rand.nextInt((maxBound - minBound) + 1);
 		numberOfSentences += minBound;
 		System.out.println("NumberOfSentences: "+numberOfSentences);
 
+		//Get random AST and ASTRewrite
+		int totalClass = javaRootMap.size();
+		
+		
 		ArrayList<CloneCopy> clones = new ArrayList();
+		ArrayList<Integer> indexKey = new ArrayList();
 		for(int i =0;i<cantidadClones;i++)
 		{
 			CloneCopy clonCopy = new CloneCopy(++clonesID);
 			clones.add(clonCopy);
-			String comment = "//START @..CLON:"+ID_CLONE+"@..COPY:"+i+"@..ID_GENERAL:"+clonesID;
+			int indexAST = (rand.nextInt(totalClass));// Index for get random AST
+			
+			String comment = "//START @..CLON:"+ID_CLONE+"@..COPY:"+i+"@..ID_GENERAL:"+clonesID+"@..TYPE:"+tipoClon;
+			ASTRewrite rewriter = astRewriteMap.get(keys[indexAST]);
+			indexKey.add(indexAST);
 			Statement placeHolderStart = (Statement) rewriter.createStringPlaceholder(comment, ASTNode.EMPTY_STATEMENT);
 			clones.get(i).statements.add(placeHolderStart);
 			comment = "//END @..CLON:"+ID_CLONE+"@..COPY:"+i+"@..ID_GENERAL:"+clonesID;
@@ -271,6 +361,9 @@ public class Main {
 				Statement statements = (Statement)methods.getBody().statements().get(i);
 				for (int j=0;j<cantidadClones;j++)
 				{
+					String key = keys[indexKey.get(j)];
+					AST ast = astMap.get(key);
+					
 					Statement newStatement =(Statement)statements.copySubtree(ast, statements);
 					if(tipoClon != 1)
 					{
@@ -285,12 +378,17 @@ public class Main {
 		//Agrego los clones a sus métodos correspondientes
 		for (int i =0;i<cantidadClones;i++)
 		{
+			String key = keys[indexKey.get(i)];
+			AST ast = astMap.get(key);
+			ASTRewrite rewriter = astRewriteMap.get(key);
+			//Seleccionar metodo de la clase donde voy a insertar el clon
+			ArrayList<MethodDeclaration> methodOfProject = methodMap.get(key);
 			MethodDeclaration methodSelected = methodOfProject.get(rand.nextInt(methodOfProject.size()));
-			methodSelected.getParent()
+			methodSelected.getParent();
 			//clones.get(i).ubication = methodSelected.getName().getIdentifier();
 			ListRewrite listRewrite = rewriter.getListRewrite(methodSelected.getBody(), Block.STATEMENTS_PROPERTY);
 			clones.get(i).name = methodSelected.getName().getIdentifier();
-
+			clones.get(i).absolutePath = key;
 			switch(tipoClon) {
 			case 1:
 				for(int j =0;j<clones.get(i).statements.size();j++)
@@ -445,7 +543,7 @@ public class Main {
 		return statement;
 	}
 	
-	public static void getLines(CompilationUnit cu,Document documentOutput)
+	public static void getLines(final CompilationUnit cu,final Document documentOutput)
 	{
 		AST ast = cu.getAST();
 		for(Comment comment: (List<Comment>) cu.getCommentList())
@@ -541,7 +639,8 @@ public class Main {
 		System.out.println("Metodos 3 : "+listSnippetsSizeThree.size());
 		System.out.println("Metodos 5 : "+listSnippetsSizeFive.size());
 	}
-	public static void getMethodsFromProject(CompilationUnit cu)
+	
+	public static void getMethodsFromProject(String key, CompilationUnit cu)
 	{
 		AST ast = cu.getAST();
 		ASTRewrite  rewriter = ASTRewrite.create(ast);
@@ -549,11 +648,22 @@ public class Main {
 		cu.accept(new ASTVisitor() {
 			//by add more visit method like the following below, then all king of statement can be visited.
 			public boolean visit(MethodDeclaration node) {
-				methodOfProject.add(node);
+				ArrayList<MethodDeclaration>  methodOfProject = methodMap.get(key);
+				if(methodOfProject == null)
+				{
+					ArrayList<MethodDeclaration> newArray = new ArrayList();
+					newArray.add(node);
+					methodMap.put(key,newArray);
+				}
+				else
+				{
+					methodOfProject.add(node);
+				}
 				return true;
 			}	
 		});
 	}
+	
 	public static CompilationUnit parse(Document doc) throws JavaModelException, MalformedTreeException, BadLocationException, IOException
 	{
 		Map options = JavaCore.getOptions();

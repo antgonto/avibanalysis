@@ -8,6 +8,7 @@ public class CloneCopy {
 	int startLine = -1;
 	int endLine = -1;
 	String name = "";
+	String absolutePath = "";
 	
 	public CloneCopy(int _ID)
 	{
