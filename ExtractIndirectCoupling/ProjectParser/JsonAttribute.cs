@@ -24,13 +24,13 @@ namespace ProjectParser
             this.oNamespace = workspace;
         }
 
-        public static JsonAttribute GetAttribute(string name, string clase, string workspace)
+        public static JsonAttribute GetAttribute(string name, string clase, string workspace, string filepath)
         {
             JsonAttribute oAttribute;
 
             if (!attributes.TryGetValue(workspace + "." + clase + "." + name, out oAttribute))
             {
-                JsonClass c = ProjectParser.JsonClass.GetClass(clase, workspace, false);
+                JsonClass c = ProjectParser.JsonClass.GetClass(clase, workspace, false, filepath);
                 oAttribute = new JsonAttribute(JsonProject.Nextid++, name, c, JsonNamespace.GetNamespace(workspace));
                 attributes.Add(workspace + "." + clase + "." + name, oAttribute);
                 c.Attributes.Add(oAttribute);

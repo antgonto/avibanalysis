@@ -14,6 +14,11 @@ namespace ProjectParser
         private bool initial; // 0: true, 1: false
         private bool final;   // 0: true, 1: false
 
+        public JsonSubchain()
+        {
+            Chain = new JsonMethod[0];
+        }
+
         public JsonSubchain(JsonMethod m)
         {
             From = m.Id;
@@ -60,6 +65,11 @@ namespace ProjectParser
             hashCode = hashCode * -1521134295 + from.GetHashCode();
             hashCode = hashCode * -1521134295 + to.GetHashCode();
             return hashCode;
+        }
+
+        public int CompareTo(JsonSubchain other, IComparer<JsonSubchain> comparer)
+        {
+            return comparer.Compare(this, other);
         }
 
         int IComparable<JsonSubchain>.CompareTo(JsonSubchain other)

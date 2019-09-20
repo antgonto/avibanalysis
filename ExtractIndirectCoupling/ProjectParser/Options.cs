@@ -12,6 +12,9 @@ namespace ProjectParser
         [Option('n', "name", Required = true, HelpText = "Name of system to be processed.")]
         public string Name { get; set; }
 
+        [Option('t', "type", Required = true, HelpText = "0: All features, 3: Three features.")]
+        public int Type { get; set; }
+
         [Option('o', "outdir", Required = true, HelpText = "Output directory.")]
         public string Outdir { get; set; }
 

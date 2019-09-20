@@ -15,7 +15,7 @@ namespace ProjectParser
     {
         static Dictionary<string, JsonClass> classes = new Dictionary<string, JsonClass>();
         int id;
-        string name, fullname;
+        string name, fullname, filepath;
         JsonNamespace onamespace;
         List<JsonAttribute> attributes = new List<JsonAttribute>();
         List<JsonMethod> methods = new List<JsonMethod>();
@@ -95,8 +95,9 @@ namespace ProjectParser
         public List<String> Types { get => types; set => types = value; }
         public List<JsonClass> Interfaces { get => interfaces; set => interfaces = value; }
         public List<string> Usings { get => usings; set => usings = value; }
+        public string Filepath { get => filepath; set => filepath = value; }
 
-        public static JsonClass GetClass(string name, string onamespace, bool isInterface)
+        public static JsonClass GetClass(string name, string onamespace, bool isInterface, string filepath)
         {
             JsonClass oclass;
 
@@ -105,6 +106,7 @@ namespace ProjectParser
                 JsonNamespace p = JsonNamespace.GetNamespace(onamespace);
                 oclass = new JsonClass(JsonProject.Nextid++, name, onamespace + "." + name, p);
                 oclass.IsInterface = isInterface;
+                oclass.Filepath = filepath;
                 classes.Add(onamespace + "." + name, oclass);
                 p.Classes.Add(oclass);
             }

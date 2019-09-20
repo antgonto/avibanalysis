@@ -79,6 +79,7 @@ namespace ProjectParser
         Dictionary<int, Dictionary<int, List<BackwardMetrics<int, long>>>> sccBackward;
 
         static Dictionary<string, JsonMethod> methods = new Dictionary<string, JsonMethod>();
+        static Dictionary<int, JsonMethod> methodsById = new Dictionary<int, JsonMethod>();
         static List<JsonMethod> sccList = new List<JsonMethod>();
 
         // Gabow's Algorithm
@@ -123,14 +124,15 @@ namespace ProjectParser
             this.Midx = mi;
         }
 
-        public static JsonMethod GetMethod(string name, string oclass, string onamespace, bool isInterface, int loc, int kon, int cyc, IHalsteadMetrics h, double mi)
+        public static JsonMethod GetMethod(string name, string oclass, string filepath, string onamespace, bool isInterface, int loc, int kon, int cyc, IHalsteadMetrics h, double mi)
         {
             JsonMethod method;
 
             if (!methods.TryGetValue(onamespace + "." + oclass + "." + name, out method))
             {
-                JsonClass c = JsonClass.GetClass(oclass, onamespace, isInterface);
+                JsonClass c = JsonClass.GetClass(oclass, onamespace, isInterface, filepath);
                 method = new JsonMethod(JsonProject.Nextid++, name, c, JsonNamespace.GetNamespace(onamespace), loc, kon, cyc, h, mi);
+                methodsById.Add(method.Id, method);
                 methods.Add(onamespace + "." + oclass + "." + name, method);
                 c.Methods.Add(method);
                 JsonMethod.cantidadMetodos++;
@@ -404,14 +406,20 @@ namespace ProjectParser
             }
 
             List<JsonSubchain> next_list = list;
+            list = null;
+
+            JsonChainStream chainStream = new JsonChainStream();
+            string streamfile = @"C:/Users/jnavas/source/repos/Dataset092019/Temp/subchainstream";
+            chainStream.Open(streamfile, JsonSubchain.SortToFromInitialAscending());
 
             int minRecPerThread = 100000;
             int nthreads;
 
             int maxThreads = 0;
             int actualThreads = 0;
+            int numchains = 0;
 
-            Console.WriteLine("    Building all subchains ...");
+            Console.WriteLine("    Building all subchains and streaming to file ...");
             Console.Write("          ");
             while (next_list.Count > 0)
             {
@@ -435,7 +443,7 @@ namespace ProjectParser
                             maxThreads = max;
                         }
 
-                        Console.Write(".");
+                        //Console.Write(".");
 
                         List<JsonSubchain> l = new List<JsonSubchain>();
                         for (var index = chunk.Item1; index <= chunk.Item2; index++)
@@ -450,25 +458,30 @@ namespace ProjectParser
                 //Console.WriteLine();
                 //Console.WriteLine("           ->Max Threads=" + maxThreads + " new_list.Count=" + new_list.Count);
 
-                list.AddRange(new_list);
+                //list.AddRange(new_list);
+                for (int i = 0; i < next_list.Count; i++)
+                {
+                    chainStream.Write(next_list[i]);
+                }
+                numchains += next_list.Count;
                 next_list = new_list;
             }
             Console.WriteLine();
 
-            Console.WriteLine("    Copying list of all chains ...");
-            JsonSubchain[] records = list.ToArray();
-            list = null;
             next_list = null;
+
+            //JsonSubchain[] records = list.ToArray();
 
             Console.WriteLine("    Sorting for Riskiness ...");
             // Collect metrics for Rigidity (Fan-In)
-            Array.Sort(records, JsonSubchain.SortToFromInitialAscending());
+            chainStream.Sort();
+            //Array.Sort(records, JsonSubchain.SortToFromInitialAscending());
 
-            nthreads = Math.Min(50, (records.Length + minRecPerThread - 1) / minRecPerThread);
+            nthreads = Math.Min(50, (numchains + minRecPerThread - 1) / minRecPerThread);
 
             Console.WriteLine("    Splitting records ...");
             // Split records in nthreads slices to collect Rigidity (Fan-In)
-            List<Tuple<int, int>> slices = SplitRecordsByTo(records, nthreads);
+            List<Tuple<int, int>> slices = SplitRecordsByTo(chainStream, numchains, nthreads);
 
             maxThreads = 0;
             actualThreads = 0;
@@ -486,9 +499,9 @@ namespace ProjectParser
                         maxThreads = max;
                     }
 
-                    Console.Write(".");
+                    //Console.Write(".");
 
-                    CollectRiskiness(records, s.Item1, s.Item2);
+                    CollectRiskiness(streamfile, s.Item1, s.Item2);
 
                     Interlocked.Decrement(ref actualThreads);
                 });
@@ -501,7 +514,7 @@ namespace ProjectParser
 
             Console.WriteLine("    Splitting records ...");
             // Split records in nthreads slices to collect Coupling Strength (All-Pairs)
-            slices = SplitRecordsByToFrom(records, nthreads);
+            slices = SplitRecordsByToFrom(chainStream, numchains, nthreads);
 
             maxThreads = 0;
             actualThreads = 0;
@@ -519,9 +532,9 @@ namespace ProjectParser
                         maxThreads = max;
                     }
 
-                    Console.Write(".");
+                    //Console.Write(".");
 
-                    List<Tuple<int, int, PairMetrics>> pairMetricsList = CollectCouplingStrength(records, s.Item1, s.Item2);
+                    List<Tuple<int, int, PairMetrics>> pairMetricsList = CollectCouplingStrength(streamfile, s.Item1, s.Item2);
                     AppendPairMetrics(pairMetricsList, pairMetrics);
 
                     Interlocked.Decrement(ref actualThreads);
@@ -531,13 +544,15 @@ namespace ProjectParser
 
             Console.WriteLine("    Sorting for Fragility ...");
             // Collect metrics for Fragility (Fan-Out)
-            Array.Sort(records, JsonSubchain.SortFromToFinalAscending());
+            chainStream.Comparer = JsonSubchain.SortFromToFinalAscending();
+            chainStream.Sort();
+            //Array.Sort(records, JsonSubchain.SortFromToFinalAscending());
 
-            nthreads = Math.Min(50, (records.Length + minRecPerThread - 1) / minRecPerThread);
+            nthreads = Math.Min(50, (numchains + minRecPerThread - 1) / minRecPerThread);
 
             Console.WriteLine("    Splitting records ...");
             // Split records in nthreads slices to collect Fragility (Fan-Out)
-            slices = SplitRecordsByFrom(records, nthreads);
+            slices = SplitRecordsByFrom(chainStream, numchains, nthreads);
 
             maxThreads = 0;
             actualThreads = 0;
@@ -555,9 +570,9 @@ namespace ProjectParser
                         maxThreads = max;
                     }
 
-                    Console.Write(".");
+                    //Console.Write(".");
 
-                    CollectFragility(records, s.Item1, s.Item2);
+                    CollectFragility(streamfile, s.Item1, s.Item2);
 
                     Interlocked.Decrement(ref actualThreads);
                 });
@@ -565,11 +580,14 @@ namespace ProjectParser
             Console.WriteLine("    Max Threads=" + maxThreads);
         }
 
-        private static void CollectRiskiness(JsonSubchain[] records, int i, int j)
+        private static void CollectRiskiness(string streamfile, int i, int j)
         {
             int idx = i;
 
-            JsonSubchain s = records[idx];
+            JsonChainStream stream = new JsonChainStream();
+            stream.Open(streamfile, null);
+
+            JsonSubchain s = stream.Read(idx);
             int chlen = s.Chain.Length;
             int to = s.To;
             JsonMethod m = s.Chain[chlen - 1];
@@ -581,7 +599,7 @@ namespace ProjectParser
             
             while (idx <= j)
             {
-                s = records[idx];
+                s = stream.Read(idx);
                 chlen = s.Chain.Length;
 
                 if (s.To != to)
@@ -680,12 +698,15 @@ namespace ProjectParser
             if (m.Fanout_metrics.Fcnt > 0) m.Fanout_metrics.Favg /= m.Fanout_metrics.Fcnt;
         }
 
-        private static List<Tuple<int, int, PairMetrics>> CollectCouplingStrength(JsonSubchain[] records, int i, int j)
+        private static List<Tuple<int, int, PairMetrics>> CollectCouplingStrength(string streamfile, int i, int j)
         {
             int idx = i;
             List<Tuple<int, int, PairMetrics>> metric_list = new List<Tuple<int, int, PairMetrics>>();
 
-            JsonSubchain s = records[idx];
+            JsonChainStream stream = new JsonChainStream();
+            stream.Open(streamfile, null);
+
+            JsonSubchain s = stream.Read(idx);
             int from = s.From;
             int to = s.To;
             HashSet<int> h = new HashSet<int>();
@@ -693,7 +714,7 @@ namespace ProjectParser
 
             while (idx <= j)
             {
-                s = records[idx];
+                s = stream.Read(idx);
 
                 if (s.From != from || s.To != to)
                 {
@@ -746,11 +767,14 @@ namespace ProjectParser
             subchains.AddRange(list);
         }
 
-        private static void CollectFragility(JsonSubchain[] records, int i, int j)
+        private static void CollectFragility(string streamfile, int i, int j)
         {
             int idx = i;
 
-            JsonSubchain s = records[idx];
+            JsonChainStream stream = new JsonChainStream();
+            stream.Open(streamfile, null);
+
+            JsonSubchain s = stream.Read(idx);
             int chlen = s.Chain.Length;
             int from = s.From;
             JsonMethod m = s.Chain[0];
@@ -760,7 +784,7 @@ namespace ProjectParser
 
             while (idx <= j)
             {
-                s = records[idx];
+                s = stream.Read(idx);
                 chlen = s.Chain.Length;
 
                 if (s.From != from)
@@ -864,9 +888,9 @@ namespace ProjectParser
             return indexes;
         }
 
-        private static List<Tuple<int, int>> SplitRecordsByTo(JsonSubchain[] records, int maxslices)
+        private static List<Tuple<int, int>> SplitRecordsByTo(JsonChainStream chainStream, int numchains, int maxslices)
         {
-            int len = records.Length;
+            int len = numchains;
             List<Tuple<int, int>> indexes = new List<Tuple<int, int>>();
             int offset = (len + maxslices -1) / maxslices;
             int first = 0;
@@ -874,7 +898,14 @@ namespace ProjectParser
 
             while (first < len)
             {
-                while (last < (len - 1) && records[last].To == records[last + 1].To) last++;
+                JsonSubchain lastchain1 = chainStream.Read(last);
+                JsonSubchain lastchain2 = chainStream.Read();
+                while (last < (len - 1) && lastchain1.To == lastchain2.To)
+                {
+                    last++;
+                    lastchain1 = lastchain2;
+                    lastchain2 = chainStream.Read();
+                }
                 indexes.Add(new Tuple<int, int>(first, last));
                 first = last + 1;
                 last = Math.Min(first + offset - 1, len - 1);
@@ -883,9 +914,9 @@ namespace ProjectParser
             return indexes;
         }
 
-        private static List<Tuple<int, int>> SplitRecordsByFrom(JsonSubchain[] records, int maxslices)
+        private static List<Tuple<int, int>> SplitRecordsByFrom(JsonChainStream chainStream, int numchains, int maxslices)
         {
-            int len = records.Length;
+            int len = numchains;
             List<Tuple<int, int>> indexes = new List<Tuple<int, int>>();
             int offset = (len + maxslices - 1) / maxslices;
             int first = 0;
@@ -893,7 +924,14 @@ namespace ProjectParser
 
             while (first < len)
             {
-                while (last < (len - 1) && records[last].From == records[last + 1].From) last++;
+                JsonSubchain lastchain1 = chainStream.Read(last);
+                JsonSubchain lastchain2 = chainStream.Read();
+                while (last < (len - 1) && lastchain1.From == lastchain2.From)
+                {
+                    last++;
+                    lastchain1 = lastchain2;
+                    lastchain2 = chainStream.Read();
+                }
                 indexes.Add(new Tuple<int, int>(first, last));
                 first = last + 1;
                 last = Math.Min(first + offset - 1, len - 1);
@@ -902,9 +940,9 @@ namespace ProjectParser
             return indexes;
         }
 
-        private static List<Tuple<int, int>> SplitRecordsByToFrom(JsonSubchain[] records, int maxslices)
+        private static List<Tuple<int, int>> SplitRecordsByToFrom(JsonChainStream chainStream, int numchains, int maxslices)
         {
-            int len = records.Length;
+            int len = numchains;
             List<Tuple<int, int>> indexes = new List<Tuple<int, int>>();
             int offset = (len + maxslices - 1) / maxslices;
             int first = 0;
@@ -912,9 +950,16 @@ namespace ProjectParser
 
             while (first < len)
             {
+                JsonSubchain lastchain1 = chainStream.Read(last);
+                JsonSubchain lastchain2 = chainStream.Read();
                 while (last < (len - 1) && 
-                    records[last].To == records[last + 1].To &&
-                    records[last].From == records[last + 1].From) last++;
+                    lastchain1.To == lastchain2.To &&
+                    lastchain1.From == lastchain2.From)
+                {
+                    last++;
+                    lastchain1 = lastchain2;
+                    lastchain2 = chainStream.Read();
+                }
                 indexes.Add(new Tuple<int, int>(first, last));
                 first = last + 1;
                 last = Math.Min(first + offset - 1, len - 1);
@@ -1881,6 +1926,7 @@ namespace ProjectParser
         public Metrics<double, double> Midx_metrics { get => midx_metrics; set => midx_metrics = value; }
         public Metrics<int, long> Fanin_metrics { get => fanin_metrics; set => fanin_metrics = value; }
         public Metrics<int, long> Fanout_metrics { get => fanout_metrics; set => fanout_metrics = value; }
+        public static Dictionary<int, JsonMethod> MethodsById { get => methodsById; set => methodsById = value; }
 
         static BsonJavaScript map = new BsonJavaScript(@"
             function() {
