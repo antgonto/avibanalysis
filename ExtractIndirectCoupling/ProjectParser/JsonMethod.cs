@@ -132,7 +132,7 @@ namespace ProjectParser
             {
                 JsonClass c = JsonClass.GetClass(oclass, onamespace, isInterface, filepath);
                 method = new JsonMethod(JsonProject.Nextid++, name, c, JsonNamespace.GetNamespace(onamespace), loc, kon, cyc, h, mi);
-                methodsById.Add(method.Id, method);
+                //methodsById.Add(method.Id, method);
                 methods.Add(onamespace + "." + oclass + "." + name, method);
                 c.Methods.Add(method);
                 JsonMethod.cantidadMetodos++;
@@ -410,7 +410,7 @@ namespace ProjectParser
 
             JsonChainStream chainStream = new JsonChainStream();
             string streamfile = @"C:/Users/jnavas/source/repos/Dataset092019/Temp/subchainstream";
-            chainStream.Open(streamfile, JsonSubchain.SortToFromInitialAscending());
+            chainStream.Open(streamfile, JsonSubchain.SortToFromInitialAscending(), true);
 
             int minRecPerThread = 100000;
             int nthreads;
@@ -474,7 +474,9 @@ namespace ProjectParser
 
             Console.WriteLine("    Sorting for Riskiness ...");
             // Collect metrics for Rigidity (Fan-In)
-            chainStream.Sort();
+            chainStream.Flush();
+            chainStream.MergeSort();
+            //chainStream.CheckSort();
             //Array.Sort(records, JsonSubchain.SortToFromInitialAscending());
 
             nthreads = Math.Min(50, (numchains + minRecPerThread - 1) / minRecPerThread);
@@ -545,7 +547,8 @@ namespace ProjectParser
             Console.WriteLine("    Sorting for Fragility ...");
             // Collect metrics for Fragility (Fan-Out)
             chainStream.Comparer = JsonSubchain.SortFromToFinalAscending();
-            chainStream.Sort();
+            chainStream.MergeSort();
+            //chainStream.CheckSort();
             //Array.Sort(records, JsonSubchain.SortFromToFinalAscending());
 
             nthreads = Math.Min(50, (numchains + minRecPerThread - 1) / minRecPerThread);
@@ -578,6 +581,8 @@ namespace ProjectParser
                 });
             Console.WriteLine();
             Console.WriteLine("    Max Threads=" + maxThreads);
+
+            chainStream.Close(true);
         }
 
         private static void CollectRiskiness(string streamfile, int i, int j)
@@ -632,6 +637,8 @@ namespace ProjectParser
             }
 
             AvgForwardMetrics(m, ref hal_sum, ref hal_net);
+
+            stream.Close();
 
             m.WasProcessed = enteredIf;
         }
@@ -750,6 +757,8 @@ namespace ProjectParser
                 metric_list.Add(new Tuple<int, int, PairMetrics>(from, to, metrics));
             }
 
+            stream.Close();
+
             return metric_list;
         }
 
@@ -807,6 +816,8 @@ namespace ProjectParser
             }
 
             AvgBackwardMetrics(m, ref hal_sum, ref hal_net);
+
+            stream.Close();
         }
 
         private static void AddBackwardMetrics(JsonMethod m, JsonMethod[] ch, ref Program.HalsteadMetrics halSum, ref Program.HalsteadMetrics halNet, HashSet<int> h)
@@ -899,12 +910,15 @@ namespace ProjectParser
             while (first < len)
             {
                 JsonSubchain lastchain1 = chainStream.Read(last);
-                JsonSubchain lastchain2 = chainStream.Read();
-                while (last < (len - 1) && lastchain1.To == lastchain2.To)
+                if (last < len - 1)
                 {
-                    last++;
-                    lastchain1 = lastchain2;
-                    lastchain2 = chainStream.Read();
+                    JsonSubchain lastchain2 = chainStream.Read();
+                    while (last < (len - 1) && lastchain1.To == lastchain2.To)
+                    {
+                        last++;
+                        lastchain1 = lastchain2;
+                        lastchain2 = chainStream.Read();
+                    }
                 }
                 indexes.Add(new Tuple<int, int>(first, last));
                 first = last + 1;
@@ -925,12 +939,15 @@ namespace ProjectParser
             while (first < len)
             {
                 JsonSubchain lastchain1 = chainStream.Read(last);
-                JsonSubchain lastchain2 = chainStream.Read();
-                while (last < (len - 1) && lastchain1.From == lastchain2.From)
+                if (last < len - 1)
                 {
-                    last++;
-                    lastchain1 = lastchain2;
-                    lastchain2 = chainStream.Read();
+                    JsonSubchain lastchain2 = chainStream.Read();
+                    while (last < (len - 1) && lastchain1.From == lastchain2.From)
+                    {
+                        last++;
+                        lastchain1 = lastchain2;
+                        lastchain2 = chainStream.Read();
+                    }
                 }
                 indexes.Add(new Tuple<int, int>(first, last));
                 first = last + 1;
@@ -951,14 +968,17 @@ namespace ProjectParser
             while (first < len)
             {
                 JsonSubchain lastchain1 = chainStream.Read(last);
-                JsonSubchain lastchain2 = chainStream.Read();
-                while (last < (len - 1) && 
-                    lastchain1.To == lastchain2.To &&
-                    lastchain1.From == lastchain2.From)
+                if (last < len -1)
                 {
-                    last++;
-                    lastchain1 = lastchain2;
-                    lastchain2 = chainStream.Read();
+                    JsonSubchain lastchain2 = chainStream.Read();
+                    while (last < (len - 1) &&
+                        lastchain1.To == lastchain2.To &&
+                        lastchain1.From == lastchain2.From)
+                    {
+                        last++;
+                        lastchain1 = lastchain2;
+                        lastchain2 = chainStream.Read();
+                    }
                 }
                 indexes.Add(new Tuple<int, int>(first, last));
                 first = last + 1;

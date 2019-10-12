@@ -651,6 +651,11 @@ namespace ProjectParser
 
         private static async Task LoadProjectAsync(Options o, int sys)
         {
+
+            // temporal
+            //UploadCSVtoNeo4J();
+            //return;
+
             JsonProject project = new JsonProject();
             JsonNamespace.Project = project;
 
@@ -739,7 +744,7 @@ namespace ProjectParser
             /*/
 
 
-            /*
+            /**/
             Console.Write("Counting chains using BFS...");
             timer.Reset(); timer.Start();
             JsonMethod.CountChainsUsingBFS();
@@ -762,14 +767,29 @@ namespace ProjectParser
             Console.WriteLine("    Max ChainLen: " + JsonMethod.Stats.maxLargoCadena);
             Console.WriteLine("    Avg ChainLen: " + JsonMethod.Stats.promLargoCadena);
             Console.WriteLine("\n\n");
-            */
+            //return;
+            /**/
 
 
 
             /**/
             Console.WriteLine("Collecting PDG Metrics using Parallelism...");
             timer.Reset(); timer.Start();
-            JsonMethod.CollectMetricsInParallel();
+            try
+            {
+                JsonMethod.CollectMetricsInParallel();
+            }
+            catch (Exception e)
+            {
+                Exception ex = e;
+                while (ex != null)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine(ex.StackTrace);
+                    ex = ex.InnerException;
+                }
+                throw e;
+            }
             timer.Stop();
             Console.WriteLine();
             Console.WriteLine("    (ellapsed time: " + (((double)timer.ElapsedMilliseconds) / 60000.0).ToString() + " min)");
@@ -2028,6 +2048,8 @@ namespace ProjectParser
                 JsonMethod m = entry.Value;
                 if (m.IsMethod == true && m.IsCollapsed == false)
                 {
+                    JsonMethod.MethodsById.Add(m.Id, m);
+
                     // substitute calls to SCC's methods to a call to the SCC method
                     foreach (JsonCall cm in m.Calls.ToList())
                     {
@@ -2057,6 +2079,8 @@ namespace ProjectParser
 
             foreach (JsonMethod m in JsonMethod.SccList)
             {
+                JsonMethod.MethodsById.Add(m.Id, m);
+
                 // substitute calls to SCC's methods to a call to the SCC method
                 foreach (JsonCall cm in m.Calls.ToList())
                 {
@@ -2180,10 +2204,10 @@ namespace ProjectParser
 
         private static void UploadCSVtoNeo4J()
         {
-            //string folder = @"/Users/jnavas/ImagineTecDownloads/neo4j_import/";
-            string folder = @"";
-            //var driver = GraphDatabase.Driver("bolt://192.168.100.22:7687", AuthTokens.Basic("neo4j", "123"));
-            var driver = GraphDatabase.Driver("bolt://localhost:7687", AuthTokens.Basic("neo4j", "123"));
+            string folder = @"/Users/jnavas/ImagineTecDownloads/neo4j_import/";
+            //string folder = @"";
+            var driver = GraphDatabase.Driver("bolt://192.168.100.22:7687", AuthTokens.Basic("neo4j", "123"));
+            //var driver = GraphDatabase.Driver("bolt://localhost:7687", AuthTokens.Basic("neo4j", "123"));
             using (var session = driver.Session(AccessMode.Write))
             {
                 // CANNOT USE --> USING PERIODIC COMMIT 500
@@ -2290,10 +2314,10 @@ namespace ProjectParser
 
         private static void UploadMethodsCSVtoNeo4J()
         {
-            //string folder = @"/Users/jnavas/ImagineTecDownloads/neo4j_import/";
-            string folder = @"";
-            //var driver = GraphDatabase.Driver("bolt://192.168.100.22:7687", AuthTokens.Basic("neo4j", "123"));
-            var driver = GraphDatabase.Driver("bolt://localhost:7687", AuthTokens.Basic("neo4j", "123"));
+            string folder = @"/Users/jnavas/ImagineTecDownloads/neo4j_import/";
+            //string folder = @"";
+            var driver = GraphDatabase.Driver("bolt://192.168.100.22:7687", AuthTokens.Basic("neo4j", "123"));
+            //var driver = GraphDatabase.Driver("bolt://localhost:7687", AuthTokens.Basic("neo4j", "123"));
             using (var session = driver.Session(AccessMode.Write))
             {
                 // CANNOT USE --> USING PERIODIC COMMIT 500
@@ -2352,8 +2376,8 @@ namespace ProjectParser
 
         private static void SaveGraphCSV(JsonProject project)
         {
-            //string import_path = @"F:/neo4j_import/";
-            string import_path = Environment.ExpandEnvironmentVariables(@"%NEO4J_HOME%\import\");
+            string import_path = @"F:/neo4j_import/";
+            //string import_path = Environment.ExpandEnvironmentVariables(@"%NEO4J_HOME%\import\");
             System.IO.StreamWriter projectSW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"project.csv"), false);
             System.IO.StreamWriter namespacesSW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"namespaces.csv"), false);
             System.IO.StreamWriter hierarchySW = new System.IO.StreamWriter(String.Format(@"{0}{1}", import_path, @"hierarchy.csv"), false);

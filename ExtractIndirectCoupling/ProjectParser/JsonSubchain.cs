@@ -133,8 +133,8 @@ namespace ProjectParser
             {
                 if (a.from > b.from) return 1;
                 if (a.from < b.from) return -1;
-                if (a.Final && !b.Final) return 1;
-                if (!a.Final && b.Final) return -1;
+                if (!a.Final &&  b.Final) return 1;
+                if ( a.Final && !b.Final) return -1;
                 if (a.to > b.to) return 1;
                 if (a.to < b.to) return -1;
                 return 0;
@@ -147,8 +147,8 @@ namespace ProjectParser
             {
                 if (a.to > b.to) return 1;
                 if (a.to < b.to) return -1;
-                if (a.Initial && !b.Initial) return 1;
-                if (!a.Initial && b.Initial) return -1;
+                if (!a.Initial &&  b.Initial) return 1;
+                if ( a.Initial && !b.Initial) return -1;
                 if (a.from > b.from) return 1;
                 if (a.from < b.from) return -1;
                 return 0;
