@@ -23,5 +23,16 @@ namespace CodeGenerator
             }
         }
 
+        public static double Variance(List<int> array) {
+            double average = array.Average();
+
+            double sumOfSquares = 0.0;
+            foreach (int num in array) {
+                sumOfSquares += Math.Pow((num - average), 2.0);
+            }
+
+            return sumOfSquares / (double)(array.Count - 1);
+        }
+
     }
 }

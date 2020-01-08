@@ -13,12 +13,22 @@ namespace CodeGenerator
     {
         static void Main(string[] args) {
 
-            Configuracion configuracion = Configuracion.Instancia;
+            // Temp, hardcoded load configuration.
+            Configuration.load("C:\\ProyectoAVIB\\SampleConfiguration.json");
+            // Get the instance.
+            Configuration configuracion = Configuration.Instancia;
 
+            // Optional, save the configuration after running.
+            Configuration.write(Path.Combine(configuracion.DirectorioPrincipal, "Configuration(" + configuracion.NombreDelProyecto + ").json"));
+
+            // Create a graph based in the configuration.
             GrafoDeInvocaciones grafo = new GrafoDeInvocaciones(configuracion);
+            // Write the code (all clases).
             grafo.escribirCodigo();
-            grafo.escribirCadenas();
+            // Write the chains.
+            grafo.WriteChains();
 
+            // Validate the created code, compile it and get the errors if required.
             if (configuracion.ValidarCompilacionDelCodigo) {
                 if (compileCode())
                     Console.WriteLine("El código generado fue compilado correctamente, no se encontraron errores.");
@@ -26,20 +36,7 @@ namespace CodeGenerator
                     Console.WriteLine(":(");
             }
 
-            /*
-            int[,] grafito = grafo.crearMatrizDeAdyacencias();
-
-            int Nodos = (int)(Math.Sqrt(grafito.LongLength));
-
-            for(int x = 0; x < Nodos; x++) {
-                for (int y = 0; y < Nodos; y++) {
-                    Console.Write(grafito[x, y]);
-                    Console.Write(' ');
-                }
-                Console.WriteLine();
-            }
-            */
-
+            // Wait until the user press a key.
             Console.ReadKey();
         }
 
@@ -48,7 +45,7 @@ namespace CodeGenerator
         static public bool compileCode() {
 
             //Configuración
-            Configuracion configuracion = Configuracion.Instancia;
+            Configuration configuracion = Configuration.Instancia;
 
             //Compilador
             CodeDomProvider provider = CodeDomProvider.CreateProvider("CSharp");
@@ -84,30 +81,6 @@ namespace CodeGenerator
             }
 
             return canCompile;
-
-
-            /*
-            foreach (string filePath in filePaths) {
-
-                compilerParameters.OutputAssembly = (filePath + ".exe");
-
-                CompilerResults results = provider.CompileAssemblyFromFile(compilerParameters, filePath);
-
-                if (results.Errors.Count > 0) {
-                    Console.WriteLine("Error de compilación en el archivo: \"{0}\"", filePath);
-
-                    // Display compilation errors.
-                    Console.WriteLine("Errors building {0} into {1}",
-                        filePath, results.PathToAssembly);
-                    foreach (CompilerError ce in results.Errors) {
-                        Console.WriteLine("  {0}", ce.ToString());
-                        Console.WriteLine();
-                    }
-
-                    canCompile = false;
-                }
-
-            }*/
         }
     }
 }

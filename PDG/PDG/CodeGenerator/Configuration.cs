@@ -4,12 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using Newtonsoft.Json;
 
 namespace CodeGenerator
 {
-    public sealed class Configuracion
+    public sealed class Configuration
     {
-        private static readonly Configuracion _instancia = new Configuracion();
+        public static Configuration Instancia { get; private set; } = new Configuration();
 
         public int CantidadDeClases { get; set; }
         public int MinimaCantidadDeMetodosPorClase { get; set; }
@@ -20,30 +21,42 @@ namespace CodeGenerator
         public int CantidadDeCrucezPorRealizar { get; set; }
         public double PorcentajeDeRealizarCruce1 { get; set; }
         public double PorcentajeDeRealizarCruce2 { get; set; }
+        public double PorcentajeDeRecubrimientoConSnippets { get; set; }
         public bool ValidarCompilacionDelCodigo { get; set; }
         public string DirectorioPrincipal { get; set; }
         public string NombreDelProyecto { get; set; }
         public string DirectorioDelCodigo { get; set; }
 
-        private Configuracion() {
-            CantidadDeClases = 5;
-            MinimaCantidadDeMetodosPorClase = 3;
-            MaximaCantidadDeMetodosPorClase = 6;
-            MinimaLongitudDeCadena = 5;
-            MaximaLongitudDeCadena = 7;
-            CantidadDeCadenasIndependientes = 5;
-            CantidadDeCrucezPorRealizar = 10;
-            PorcentajeDeRealizarCruce1 = .99;
-            PorcentajeDeRealizarCruce2 = .01;
-            ValidarCompilacionDelCodigo = true;
-            DirectorioPrincipal = "C:\\ProyectoAVIB\\Pruebas";
-            NombreDelProyecto = "FirstTest";
+        private Configuration() {}
 
-            DirectorioDelCodigo = Path.Combine(DirectorioPrincipal, NombreDelProyecto);
-        }
+        public static void write(string path) {
+            // Create a file
+            FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write);
+            StreamWriter writer = new StreamWriter(fileStream);
 
-        public static Configuracion Instancia {
-            get { return _instancia; }
+            // Serialize the object.
+            string jsonConfiguration = JsonConvert.SerializeObject(Instancia, Formatting.Indented);
+
+            // Write and close the file
+            writer.WriteLine(jsonConfiguration);
+            writer.Close();
+            fileStream.Close();
+        } 
+
+        public static void load(string path) {
+            // Open the file
+            FileStream fileStream = new FileStream(path, FileMode.Open, FileAccess.Read);
+            StreamReader reader = new StreamReader(fileStream);
+
+            // Read the json object.
+            string jsonConfiguration = reader.ReadToEnd();
+
+            // Deserialize the json object and set it as the new instance.
+            Instancia = JsonConvert.DeserializeObject<Configuration>(jsonConfiguration);
+
+            // Close the file
+            reader.Close();
+            fileStream.Close();
         }
         
         /* Validar que por ejemplo la cantidad de cadenas independientes no

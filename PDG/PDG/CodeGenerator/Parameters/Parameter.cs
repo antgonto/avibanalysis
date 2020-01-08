@@ -6,12 +6,10 @@ namespace CodeGenerator.Parameters
     {
         public string type { get; set; }
         public string name { get; set; }
-        public int amount { get; set; }
 
-        public Parameter(string type) {
+        public Parameter(string type, int number) {
             this.type = type;
-            name = "parameter" + amount.ToString();
-            amount++;
+            name = "parameter" + number.ToString();
         }
 
         static public string formatParameters(List<Parameter> parameters) {

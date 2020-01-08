@@ -12,7 +12,7 @@ namespace CodeGenerator.Classes
     abstract class Class
     {
         public int identificador { get; set; }
-        public string name { get; set; }
+        public string Name { get; set; }
         public int complejidadCiclomatica { get; set; }
         public List<Method> metodos { get; set; } = new List<Method>();
         public static int cantidadDeClases { get; set; }
@@ -22,13 +22,20 @@ namespace CodeGenerator.Classes
             identificador = cantidadDeClases;
             cantidadDeClases++;
 
-            name = "Class" + identificador.ToString();
+            Name = "Class" + identificador.ToString();
+        }
+
+        public Class(string name) {
+            identificador = cantidadDeClases;
+            cantidadDeClases++;
+
+            Name = name;
         }
 
         public void WriteClass(string path) {
 
             // Crear el objeto necesario para escribir archivos.
-            string pathClase = Path.Combine(path, (name + ".cs"));
+            string pathClase = Path.Combine(path, (Name + ".cs"));
             FileStream fileStream = new FileStream(pathClase, FileMode.Create, FileAccess.Write);
             StreamWriter writer = new StreamWriter(fileStream);
 

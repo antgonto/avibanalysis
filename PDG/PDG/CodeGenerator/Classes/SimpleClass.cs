@@ -15,8 +15,11 @@ namespace CodeGenerator.Classes
         public SimpleClass() : base() {
         }
 
+        public SimpleClass(string name) : base(name) {
+        }
+
         protected override void WriteClassHead(StreamWriter writer) {
-            writer.WriteLine(Templates.simpleClassHead, name);
+            writer.WriteLine(Templates.simpleClassHead, Name);
             writer.WriteLine();
         }
 

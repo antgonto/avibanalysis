@@ -14,16 +14,20 @@ namespace CodeGenerator.Methods
 
         public StaticMethod(string accessModifier, string returnType, string name) : base(accessModifier, returnType, name) { }
 
-        /* Método para invocar un método estático.
-         */
-        protected override void WriteInvocation(StreamWriter writer) {
+        protected override string GetInnerInvocation(int indentationLevel = 3) {
+            throw new NotImplementedException();
+        }
+
+        protected override string GetOuterInvocation(int indentationLevel = 3) {
             throw new NotImplementedException();
         }
 
         /* Método para escribir la firma de un método estático.
          */
-        protected override void WriteSignature(StreamWriter writer) {
-            writer.WriteLine(Templates.staticMethodHead, accessModifier, returnType, name, GetParameters());
+        protected override string GetSignature() {
+            //Signature
+            string signature = string.Format(Templates.staticMethodHead, accessModifier, returnType, name, GetParameters());
+            return signature;
         }
     }
 }

@@ -8,12 +8,13 @@ namespace CodeGenerator
 {
     static class Templates
     {
+
         static public string namespaceHead =
             "namespace namespace1\n{";
 
         static public string namespaceTail =
             "}";
-        
+
         /* class className
          * {
          * parameter, name of class
@@ -43,7 +44,7 @@ namespace CodeGenerator
          *   second name of instace
          */
         static public string instanceSimpleClass =
-            "\t\t\t{0} {1} = new {0}();";
+            "{0} {1} = new {0}();";
 
         /* classInstance1.method1(paramters...);
          * Parameters:
@@ -51,8 +52,16 @@ namespace CodeGenerator
          *   second, name of method
          *   third, parameters of method
          */
-        static public string invokeSimpleMethodFromClass =
-            "\t\t\t{0}.{1}({2});";
+        static public string invokeSimpleMethodFromOuterClass =
+            "{0}.{1}({2});";
+
+        /* this.method1(paramters...);
+         * Parameters:
+         *   first, name of method
+         *   second, parameters of method
+         */
+        static public string invokeSimpleMethodFromInnerClass =
+            "this.{0}({1});";
 
         /* First parameter number of instance
          */
