@@ -209,12 +209,14 @@
     <Compile Include="JsonAttribute.cs" />
     <Compile Include="JsonCall.cs" />
     <Compile Include="JsonChain.cs" />
+    <Compile Include="JsonChainStream.cs" />
     <Compile Include="JsonClass.cs" />
     <Compile Include="Eslavon.cs" />
     <Compile Include="Grafo.cs" />
     <Compile Include="JsonLink.cs" />
     <Compile Include="JsonProject.cs" />
     <Compile Include="JsonSubchain.cs" />
+    <Compile Include="JsonSubchainRecord.cs" />
     <Compile Include="Llamada.cs" />
     <Compile Include="JsonMethod.cs" />
     <Compile Include="Metodo.cs" />
